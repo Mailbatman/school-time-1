@@ -9,11 +9,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import PasswordStrength from '@/components/PasswordStrength';
 
 const SignUpPage = () => {
   const router = useRouter();
   const { initializing, signUp } = useContext(AuthContext);
   const [showPw, setShowPw] = useState(false);
+  const [showConfirmPw, setShowConfirmPw] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
@@ -52,12 +54,16 @@ const SignUpPage = () => {
       .matches(/[a-zA-Z]/, "Must contain at least one letter")
       .matches(/[0-9]/, "Must contain at least one number")
       .max(40, "Must not exceed 40 characters"),
+    confirmPassword: Yup.string()
+      .required("Confirmation is required")
+      .oneOf([Yup.ref('password')], "Passwords must match"),
   });
 
   const formik = useFormik({
     initialValues: {
       email: '',
       password: '',
+      confirmPassword: '',
     },
     validationSchema,
     onSubmit: handleSignUp,
@@ -125,8 +131,40 @@ const SignUpPage = () => {
                           }
                         </Button>
                       </div>
+                      <PasswordStrength password={formik.values.password} />
                       {formik.touched.password && formik.errors.password && (
                         <p className="text-destructive text-xs">{formik.errors.password}</p>
+                      )}
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                      <Label htmlFor="confirmPassword">Confirm Password</Label>
+                      <div className="relative">
+                        <Input
+                          id="confirmPassword"
+                          name="confirmPassword"
+                          type={showConfirmPw ? 'text' : 'password'}
+                          placeholder="Confirm your password"
+                          value={formik.values.confirmPassword}
+                          onChange={formik.handleChange}
+                          onBlur={formik.handleBlur}
+                          className="py-6"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                          onClick={() => setShowConfirmPw(!showConfirmPw)}
+                        >
+                          {showConfirmPw
+                            ? <FaEye className="text-muted-foreground" />
+                            : <FaEyeSlash className="text-muted-foreground" />
+                          }
+                        </Button>
+                      </div>
+                      {formik.touched.confirmPassword && formik.errors.confirmPassword && (
+                        <p className="text-destructive text-xs">{formik.errors.confirmPassword}</p>
                       )}
                     </div>
 
