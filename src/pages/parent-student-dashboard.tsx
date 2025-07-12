@@ -1,21 +1,33 @@
 import { useAuth } from '@/contexts/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import Header from '@/components/Header';
+import { Button } from '@/components/ui/button';
 
 const ParentStudentDashboard = () => {
-  const { userProfile } = useAuth();
+  const { userProfile, signOut } = useAuth();
 
   return (
     <ProtectedRoute roles={['PARENT_STUDENT', 'USER']}>
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <div className="text-center">
-          <h1 className="text-4xl font-bold text-gray-900 dark:text-white">Parent/Student Dashboard</h1>
-          <p className="mt-2 text-lg text-gray-600 dark:text-gray-300">
-            Welcome, {userProfile?.firstName} {userProfile?.lastName}!
-          </p>
-          <p className="mt-1 text-md text-gray-500 dark:text-gray-400">
-            Your role is: {userProfile?.role}
-          </p>
-        </div>
+      <div className="flex flex-col min-h-screen bg-background">
+        <Header />
+        <main className="flex-grow flex flex-col items-center justify-center text-center px-4">
+          <div className="text-center">
+            <h1 className="text-4xl font-bold text-primary">Parent/Student Dashboard</h1>
+            <p className="mt-2 text-lg text-muted-foreground">
+              Welcome, {userProfile?.firstName} {userProfile?.lastName}!
+            </p>
+            <p className="mt-1 text-md text-muted-foreground">
+              Your role is: <strong>{userProfile?.role}</strong>
+            </p>
+            <Button
+              size="lg"
+              onClick={signOut}
+              className="mt-8"
+            >
+              Log Out
+            </Button>
+          </div>
+        </main>
       </div>
     </ProtectedRoute>
   );
