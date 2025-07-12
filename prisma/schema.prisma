@@ -18,8 +18,6 @@ model User {
 }
 
 enum Role {
-  USER
-  ADMIN
   SUPER_ADMIN
   SCHOOL_ADMIN
   TEACHER
