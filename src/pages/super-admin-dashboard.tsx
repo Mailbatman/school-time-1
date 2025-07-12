@@ -5,7 +5,15 @@ import Header from '@/components/Header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Switch } from '@/components/ui/switch';
+import { MoreHorizontal } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { toast } from '@/components/ui/use-toast';
 import { Toaster } from '@/components/ui/toaster';
 import { useSuperAdminData } from '@/hooks/useSuperAdminData';
@@ -22,31 +30,35 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 import prisma from '@/lib/prisma';
 import { GetServerSideProps } from 'next';
-import { School, SchoolEnrollment } from '@prisma/client';
+import { School, SchoolEnrollment, User } from '@prisma/client';
 import { Badge } from '@/components/ui/badge';
 
+type SchoolWithAdmin = School & {
+  users: Pick<User, 'email'>[];
+};
+
 interface SuperAdminDashboardProps {
-  schools: School[];
+  schools: SchoolWithAdmin[];
   enrollments: SchoolEnrollment[];
 }
 
 const SuperAdminDashboard = ({ schools: initialSchools, enrollments: initialEnrollments }: SuperAdminDashboardProps) => {
   const { userProfile } = useAuth();
   const { schools, enrollments, refetch } = useSuperAdminData({ schools: initialSchools, enrollments: initialEnrollments });
-  const [editingSchool, setEditingSchool] = useState<School | null>(null);
-  const [assigningAdmin, setAssigningAdmin] = useState<School | null>(null);
+  const [editingSchool, setEditingSchool] = useState<SchoolWithAdmin | null>(null);
+  const [assigningAdmin, setAssigningAdmin] = useState<SchoolWithAdmin | null>(null);
   const [adminEmail, setAdminEmail] = useState('');
 
-  const handleUpdateSchool = async (school: School) => {
+  const handleUpdateSchool = async () => {
+    if (!editingSchool) return;
     try {
-      const response = await fetch(`/api/schools/${school.id}`, {
+      const response = await fetch(`/api/schools/${editingSchool.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: school.name, isActive: school.isActive }),
+        body: JSON.stringify({ name: editingSchool.name }),
       });
       if (response.ok) {
         setEditingSchool(null);
@@ -60,9 +72,22 @@ const SuperAdminDashboard = ({ schools: initialSchools, enrollments: initialEnro
     }
   };
 
-  const handleToggleActive = (school: School) => {
-    const updatedSchool = { ...school, isActive: !school.isActive };
-    handleUpdateSchool(updatedSchool);
+  const handleToggleActive = async (school: SchoolWithAdmin) => {
+    try {
+      const response = await fetch(`/api/schools/${school.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive: !school.isActive }),
+      });
+      if (response.ok) {
+        toast({ title: 'Success', description: `School ${!school.isActive ? 'enabled' : 'disabled'}.` });
+        refetch();
+      } else {
+        toast({ title: 'Error', description: 'Failed to update school status.', variant: 'destructive' });
+      }
+    } catch (error) {
+      toast({ title: 'Error', description: 'An error occurred.', variant: 'destructive' });
+    }
   };
 
   const handleAssignAdmin = async () => {
@@ -161,51 +186,48 @@ const SuperAdminDashboard = ({ schools: initialSchools, enrollments: initialEnro
                 <TableHeader>
                   <TableRow>
                     <TableHead>School Name</TableHead>
+                    <TableHead>Admin</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Actions</TableHead>
+                    <TableHead>Created At</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {schools.map((school) => (
+                  {(schools as SchoolWithAdmin[]).map((school) => (
                     <TableRow key={school.id}>
+                      <TableCell className="font-medium">{school.name}</TableCell>
+                      <TableCell>{school.users[0]?.email || 'Not Assigned'}</TableCell>
                       <TableCell>
-                        {editingSchool?.id === school.id ? (
-                          <Input
-                            value={editingSchool.name}
-                            onChange={(e) => setEditingSchool({ ...editingSchool, name: e.target.value })}
-                            onBlur={() => handleUpdateSchool(editingSchool)}
-                          />
-                        ) : (
-                          <span onDoubleClick={() => setEditingSchool(school)}>{school.name}</span>
-                        )}
+                        <Badge variant={school.isActive ? 'default' : 'destructive'}>
+                          {school.isActive ? 'Active' : 'Disabled'}
+                        </Badge>
                       </TableCell>
-                      <TableCell>
-                        <Switch
-                          checked={school.isActive}
-                          onCheckedChange={() => handleToggleActive(school)}
-                        />
-                        <span className="ml-2">{school.isActive ? 'Active' : 'Disabled'}</span>
-                      </TableCell>
-                      <TableCell className="flex gap-2">
-                        <Button variant="outline" size="sm" onClick={() => setEditingSchool(school)}>Edit</Button>
-                        <Dialog open={!!assigningAdmin && assigningAdmin.id === school.id} onOpenChange={(isOpen) => !isOpen && setAssigningAdmin(null)}>
-                          <DialogTrigger asChild>
-                            <Button variant="outline" size="sm" onClick={() => setAssigningAdmin(school)}>Assign Admin</Button>
-                          </DialogTrigger>
-                          <DialogContent>
-                            <DialogHeader>
-                              <DialogTitle>Assign Admin to {assigningAdmin?.name}</DialogTitle>
-                            </DialogHeader>
-                            <div className="grid gap-4 py-4">
-                              <Input
-                                placeholder="Admin email"
-                                value={adminEmail}
-                                onChange={(e) => setAdminEmail(e.target.value)}
-                              />
-                              <Button onClick={handleAssignAdmin}>Assign</Button>
-                            </div>
-                          </DialogContent>
-                        </Dialog>
+                      <TableCell>{new Date(school.createdAt).toLocaleDateString()}</TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                              <span className="sr-only">Open menu</span>
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <DropdownMenuItem onClick={() => setEditingSchool(school)}>
+                              Edit School
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => {
+                              setAssigningAdmin(school);
+                              setAdminEmail(school.users[0]?.email || '');
+                            }}>
+                              Assign Admin
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => handleToggleActive(school)}>
+                              {school.isActive ? 'Disable' : 'Enable'} School
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -215,6 +237,38 @@ const SuperAdminDashboard = ({ schools: initialSchools, enrollments: initialEnro
           </Card>
         </main>
         <Toaster />
+
+        <Dialog open={!!editingSchool} onOpenChange={(isOpen) => !isOpen && setEditingSchool(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit School</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <Input
+                placeholder="School name"
+                value={editingSchool?.name || ''}
+                onChange={(e) => setEditingSchool(s => s ? { ...s, name: e.target.value } : null)}
+              />
+              <Button onClick={handleUpdateSchool}>Save Changes</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={!!assigningAdmin} onOpenChange={(isOpen) => !isOpen && setAssigningAdmin(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Assign Admin to {assigningAdmin?.name}</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <Input
+                placeholder="Admin email"
+                value={adminEmail}
+                onChange={(e) => setAdminEmail(e.target.value)}
+              />
+              <Button onClick={handleAssignAdmin}>Assign</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </ProtectedRoute>
   );
@@ -224,6 +278,12 @@ export const getServerSideProps: GetServerSideProps = async () => {
   const [schools, enrollments] = await Promise.all([
     prisma.school.findMany({
       orderBy: { createdAt: 'desc' },
+      include: {
+        users: {
+          where: { role: 'SCHOOL_ADMIN' },
+          select: { email: true },
+        },
+      },
     }),
     prisma.schoolEnrollment.findMany({
       orderBy: { createdAt: 'desc' },

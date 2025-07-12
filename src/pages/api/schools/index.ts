@@ -20,6 +20,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     try {
       const schools = await prisma.school.findMany({
         orderBy: { createdAt: 'desc' },
+        include: {
+          users: {
+            where: {
+              role: 'SCHOOL_ADMIN',
+            },
+            select: {
+              email: true,
+            },
+          },
+        },
       });
       res.status(200).json({ data: schools });
     } catch (error) {
