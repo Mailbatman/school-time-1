@@ -163,6 +163,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const signOut = async () => {
+    await router.push('/');
     const { error } = await supabase.auth.signOut();
     if (error) {
       toast({
@@ -171,12 +172,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         description: error.message,
       });
     } else {
-      setUserProfile(null);
       toast({
         title: "Success",
         description: "You have successfully signed out",
       });
-      router.push('/');
     }
   };
 
