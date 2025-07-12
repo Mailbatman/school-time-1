@@ -25,15 +25,18 @@ import {
 } from '@/components/ui/dialog';
 import prisma from '@/lib/prisma';
 import { GetServerSideProps } from 'next';
-import { School } from '@prisma/client';
+import { School, SchoolEnrollment } from '@prisma/client';
+import { Badge } from '@/components/ui/badge';
 
 interface SuperAdminDashboardProps {
   schools: School[];
+  enrollments: SchoolEnrollment[];
 }
 
-const SuperAdminDashboard = ({ schools: initialSchools }: SuperAdminDashboardProps) => {
+const SuperAdminDashboard = ({ schools: initialSchools, enrollments: initialEnrollments }: SuperAdminDashboardProps) => {
   const { userProfile } = useAuth();
   const [schools, setSchools] = useState<School[]>(initialSchools);
+  const [enrollments, setEnrollments] = useState<SchoolEnrollment[]>(initialEnrollments);
   const [newSchoolName, setNewSchoolName] = useState('');
   const [editingSchool, setEditingSchool] = useState<School | null>(null);
   const [assigningAdmin, setAssigningAdmin] = useState<School | null>(null);
@@ -106,17 +109,74 @@ const SuperAdminDashboard = ({ schools: initialSchools }: SuperAdminDashboardPro
     }
   };
 
+  const handleUpdateEnrollmentStatus = async (id: string, status: 'APPROVED' | 'REJECTED') => {
+    try {
+      const response = await fetch(`/api/enrollment/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+      if (response.ok) {
+        const updatedEnrollment = await response.json();
+        setEnrollments(enrollments.map(e => e.id === id ? updatedEnrollment : e));
+        toast({ title: 'Success', description: `Enrollment ${status.toLowerCase()}.` });
+        if (status === 'APPROVED') {
+          // The school is created on the backend. A page refresh will show the new school in the list below.
+        }
+      } else {
+        toast({ title: 'Error', description: 'Failed to update enrollment.', variant: 'destructive' });
+      }
+    } catch (error) {
+      toast({ title: 'Error', description: 'An error occurred.', variant: 'destructive' });
+    }
+  };
+
   return (
     <ProtectedRoute roles={['SUPER_ADMIN', 'ADMIN']}>
       <div className="flex flex-col min-h-screen bg-background">
         <Header />
-        <main className="flex-grow p-4 md:p-8">
-          <div className="text-center mb-8">
+        <main className="flex-grow p-4 md:p-8 space-y-8">
+          <div className="text-center">
             <h1 className="text-4xl font-bold text-primary">Super Admin Dashboard</h1>
             <p className="mt-2 text-lg text-muted-foreground">
               Welcome, {userProfile?.firstName} {userProfile?.lastName}!
             </p>
           </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Enrollment Requests</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>School Name</TableHead>
+                    <TableHead>Contact</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {enrollments.map((enrollment) => (
+                    <TableRow key={enrollment.id}>
+                      <TableCell>{enrollment.schoolName}</TableCell>
+                      <TableCell>{enrollment.contactName} ({enrollment.contactEmail})</TableCell>
+                      <TableCell><Badge variant={enrollment.status === 'PENDING' ? 'secondary' : enrollment.status === 'APPROVED' ? 'default' : 'destructive'}>{enrollment.status}</Badge></TableCell>
+                      <TableCell className="flex gap-2">
+                        {enrollment.status === 'PENDING' && (
+                          <>
+                            <Button size="sm" onClick={() => handleUpdateEnrollmentStatus(enrollment.id, 'APPROVED')}>Approve</Button>
+                            <Button size="sm" variant="destructive" onClick={() => handleUpdateEnrollmentStatus(enrollment.id, 'REJECTED')}>Reject</Button>
+                          </>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
 
           <Card>
             <CardHeader>
@@ -195,13 +255,20 @@ const SuperAdminDashboard = ({ schools: initialSchools }: SuperAdminDashboardPro
 };
 
 export const getServerSideProps: GetServerSideProps = async () => {
-  const schools = await prisma.school.findMany({
-    orderBy: {
-      createdAt: 'desc',
-    },
-  });
+  const [schools, enrollments] = await Promise.all([
+    prisma.school.findMany({
+      orderBy: { createdAt: 'desc' },
+    }),
+    prisma.schoolEnrollment.findMany({
+      orderBy: { createdAt: 'desc' },
+    }),
+  ]);
+
   return {
-    props: { schools: JSON.parse(JSON.stringify(schools)) },
+    props: {
+      schools: JSON.parse(JSON.stringify(schools)),
+      enrollments: JSON.parse(JSON.stringify(enrollments)),
+    },
   };
 };
 

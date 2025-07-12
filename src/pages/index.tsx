@@ -32,6 +32,13 @@ export default function Home() {
             </Button>
             <Button
               size="lg"
+              variant="secondary"
+              onClick={() => router.push('/enroll')}
+            >
+              Enroll Your School
+            </Button>
+            <Button
+              size="lg"
               variant="outline"
               onClick={() => router.push('/login')}
             >
