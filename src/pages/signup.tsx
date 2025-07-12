@@ -24,13 +24,21 @@ const SignUpPage = () => {
       const { email, password } = formik.values;
       await signUp(email, password);
       router.push('/login');
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      toast({
-        variant: "destructive",
-        title: "Sign up failed",
-        description: "Please try again.",
-      });
+      if (error.message && error.message.includes('User already registered')) {
+        toast({
+          variant: "destructive",
+          title: "Sign up failed",
+          description: "An account with this email already exists.",
+        });
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Sign up failed",
+          description: "An unexpected error occurred. Please try again.",
+        });
+      }
     } finally {
       setIsLoading(false);
     }
