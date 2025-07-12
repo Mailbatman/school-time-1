@@ -131,7 +131,7 @@ const EnrollPage = () => {
                       <FormItem><FormLabel>City</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
                     <FormField control={form.control} name="state" render={({ field }) => (
-                      <FormItem><FormLabel>State / Province</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormMessage>
+                      <FormItem><FormLabel>State / Province</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
