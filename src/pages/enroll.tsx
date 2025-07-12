@@ -14,12 +14,12 @@ const formSchema = z.object({
   schoolName: z.string().min(2, 'School name is required'),
   contactName: z.string().min(2, 'Contact name is required'),
   contactEmail: z.string().email('Invalid email address'),
-  contactPhone: z.string().optional(),
+  contactPhone: z.string().min(10, 'A valid phone number is required'),
+  website: z.string().url('Invalid URL').optional().or(z.literal('')),
   address: z.string().min(5, 'Address is required'),
   city: z.string().min(2, 'City is required'),
   state: z.string().min(2, 'State is required'),
   zipCode: z.string().min(5, 'Zip code is required'),
-  country: z.string().min(2, 'Country is required'),
   estimatedStudents: z.coerce.number().positive('Must be a positive number'),
 });
 
@@ -32,11 +32,11 @@ const EnrollPage = () => {
       contactName: '',
       contactEmail: '',
       contactPhone: '',
+      website: '',
       address: '',
       city: '',
       state: '',
       zipCode: '',
-      country: '',
       estimatedStudents: 100,
     },
   });
@@ -85,7 +85,10 @@ const EnrollPage = () => {
                   <FormItem><FormLabel>Contact Email</FormLabel><FormControl><Input type="email" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="contactPhone" render={({ field }) => (
-                  <FormItem><FormLabel>Contact Phone (Optional)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>Contact Phone</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="website" render={({ field }) => (
+                  <FormItem><FormLabel>Website (Optional)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="address" render={({ field }) => (
                   <FormItem><FormLabel>Address</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
@@ -101,9 +104,6 @@ const EnrollPage = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField control={form.control} name="zipCode" render={({ field }) => (
                     <FormItem><FormLabel>ZIP / Postal Code</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                  )} />
-                  <FormField control={form.control} name="country" render={({ field }) => (
-                    <FormItem><FormLabel>Country</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                   )} />
                 </div>
                 <FormField control={form.control} name="estimatedStudents" render={({ field }) => (

@@ -83,12 +83,12 @@ model SchoolEnrollment {
   schoolName        String
   contactName       String
   contactEmail      String           @unique
-  contactPhone      String?
+  contactPhone      String
+  website           String?
   address           String
   city              String
   state             String
   zipCode           String
-  country           String
   estimatedStudents Int
   status            EnrollmentStatus @default(PENDING)
 
