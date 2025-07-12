@@ -5,6 +5,11 @@ import * as Yup from 'yup';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import { AuthContext } from '@/contexts/AuthContext';
 import { createClient } from '@/util/supabase/component';
+import { useToast } from "@/components/ui/use-toast";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 const ResetPasswordPage = () => {
   const router = useRouter();
@@ -13,15 +18,16 @@ const ResetPasswordPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const supabase = createClient();
+  const { toast } = useToast();
 
   const validationSchema = Yup.object().shape({
     password: Yup.string()
-      .required("Required")
+      .required("Password is required")
       .min(8, "Must be at least 8 characters")
       .matches(/[a-zA-Z]/, "Must contain at least one letter")
       .matches(/[0-9]/, "Must contain at least one number"),
     confirmPassword: Yup.string()
-      .required("Required")
+      .required("Confirmation is required")
       .oneOf([Yup.ref('password')], "Passwords must match"),
   });
 
@@ -38,14 +44,23 @@ const ResetPasswordPage = () => {
         
         if (error) throw error;
 
-        // Sign in the user with the new password
-        await signIn(data.user.email ?? '', values.password);
+        toast({
+          title: "Success",
+          description: "Your password has been reset successfully.",
+        });
 
-        // Redirect to dashboard or show success message
+        if (data.user?.email) {
+          await signIn(data.user.email, values.password);
+        }
+
         router.push('/dashboard');
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error resetting password:', error);
-        // Handle error (show error message to user)
+        toast({
+            variant: "destructive",
+            title: "Error resetting password",
+            description: error.message || "An unexpected error occurred. The password reset link may have expired.",
+        });
       } finally {
         setIsLoading(false);
       }
@@ -53,99 +68,105 @@ const ResetPasswordPage = () => {
   });
 
   return (
-    <div className="flex h-screen bg-neutral-900 justify-center items-center">
-      <div className="flex flex-col gap-7 h-[600px]">
-        <form
-          onSubmit={formik.handleSubmit}
-          className="w-full md:w-[440px] p-0 md:p-12 rounded-lg bg-transparent md:bg-neutral-800 border-0 md:border border-neutral-700"
-        >
-          <div className="flex flex-col gap-6">
-            <h2 className="font-medium text-2xl text-neutral-100 text-center">
-              Reset Password
-            </h2>
+    <div className="flex h-screen bg-background justify-center items-center">
+      <div className="flex flex-col gap-5 h-auto">
+        <Card className="w-full md:w-[440px]">
+          <CardHeader>
+            <CardTitle className="text-center">Reset Password</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={formik.handleSubmit}>
+              <div className="flex flex-col gap-6">
+                <p className="text-center text-sm text-muted-foreground">
+                  Enter your new password below.
+                </p>
 
-            <p className="text-sm text-neutral-300 text-center">
-              Enter your new password below.
-            </p>
+                <div className="flex flex-col gap-4">
+                  <div className="flex flex-col gap-2">
+                    <Label htmlFor="password">New Password</Label>
+                    <div className="relative">
+                      <Input
+                        id="password"
+                        name="password"
+                        type={showPassword ? 'text' : 'password'}
+                        placeholder="Enter your new password"
+                        value={formik.values.password}
+                        onChange={formik.handleChange}
+                        onBlur={formik.handleBlur}
+                        className="py-6"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword
+                          ? <FaEye className="text-muted-foreground" />
+                          : <FaEyeSlash className="text-muted-foreground" />
+                        }
+                      </Button>
+                    </div>
+                    {formik.touched.password && formik.errors.password && (
+                      <p className="text-destructive text-xs">{formik.errors.password}</p>
+                    )}
+                  </div>
 
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-2">
-                <div className="flex justify-between">
-                  <label htmlFor="password" className="text-sm text-neutral-300">New Password</label>
-                  {formik.touched.password && formik.errors.password && (
-                    <span className="text-red-500 text-xs">{formik.errors.password}</span>
-                  )}
+                  <div className="flex flex-col gap-2">
+                    <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                    <div className="relative">
+                      <Input
+                        id="confirmPassword"
+                        name="confirmPassword"
+                        type={showConfirmPassword ? 'text' : 'password'}
+                        placeholder="Confirm your new password"
+                        value={formik.values.confirmPassword}
+                        onChange={formik.handleChange}
+                        onBlur={formik.handleBlur}
+                        className="py-6"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      >
+                        {showConfirmPassword
+                          ? <FaEye className="text-muted-foreground" />
+                          : <FaEyeSlash className="text-muted-foreground" />
+                        }
+                      </Button>
+                    </div>
+                    {formik.touched.confirmPassword && formik.errors.confirmPassword && (
+                      <p className="text-destructive text-xs">{formik.errors.confirmPassword}</p>
+                    )}
+                  </div>
                 </div>
-                <div className="relative">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    id="password"
-                    name="password"
-                    className="w-full p-2.5 text-sm text-neutral-100 bg-neutral-700 border border-neutral-600 rounded-lg focus:ring-primary-500 focus:border-primary-500"
-                    placeholder="Enter your new password"
-                    value={formik.values.password}
-                    onChange={formik.handleChange}
-                    onBlur={formik.handleBlur}
-                  />
-                  <button
+
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={isLoading || !formik.isValid}
+                >
+                  {isLoading ? 'Resetting...' : 'Reset Password'}
+                </Button>
+
+                <div className="flex justify-center">
+                  <Button
                     type="button"
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-sm leading-5"
-                    onClick={() => setShowPassword(!showPassword)}
+                    variant="link"
+                    className="p-0"
+                    onClick={() => router.push('/login')}
                   >
-                    {showPassword ? <FaEye className="text-neutral-400" /> : <FaEyeSlash className="text-neutral-400" />}
-                  </button>
+                    Back to Login
+                  </Button>
                 </div>
               </div>
-
-              <div className="flex flex-col gap-2">
-                <div className="flex justify-between">
-                  <label htmlFor="confirmPassword" className="text-sm text-neutral-300">Confirm New Password</label>
-                  {formik.touched.confirmPassword && formik.errors.confirmPassword && (
-                    <span className="text-red-500 text-xs">{formik.errors.confirmPassword}</span>
-                  )}
-                </div>
-                <div className="relative">
-                  <input
-                    type={showConfirmPassword ? 'text' : 'password'}
-                    id="confirmPassword"
-                    name="confirmPassword"
-                    className="w-full p-2.5 text-sm text-neutral-100 bg-neutral-700 border border-neutral-600 rounded-lg focus:ring-primary-500 focus:border-primary-500"
-                    placeholder="Confirm your new password"
-                    value={formik.values.confirmPassword}
-                    onChange={formik.handleChange}
-                    onBlur={formik.handleBlur}
-                  />
-                  <button
-                    type="button"
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-sm leading-5"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  >
-                    {showConfirmPassword ? <FaEye className="text-neutral-400" /> : <FaEyeSlash className="text-neutral-400" />}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              className={`w-full py-2 text-sm font-medium text-neutral-100 bg-primary-600 rounded-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition duration-200 ${
-                isLoading || !formik.isValid ? 'opacity-50 cursor-not-allowed' : ''
-              }`}
-              disabled={isLoading || !formik.isValid}
-            >
-              {isLoading ? 'Resetting...' : 'Reset Password'}
-            </button>
-
-            <div className="flex justify-center">
-              <span
-                className="text-primary-400 text-sm font-medium cursor-pointer hover:underline"
-                onClick={() => router.push('/login')}
-              >
-                Back to Login
-              </span>
-            </div>
-          </div>
-        </form>
+            </form>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
