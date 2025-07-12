@@ -40,7 +40,9 @@ const SignUpPage = () => {
     email: Yup.string().required("Email is required").email("Email is invalid"),
     password: Yup.string()
       .required("Password is required")
-      .min(4, "Must be at least 4 characters")
+      .min(8, "Must be at least 8 characters")
+      .matches(/[a-zA-Z]/, "Must contain at least one letter")
+      .matches(/[0-9]/, "Must contain at least one number")
       .max(40, "Must not exceed 40 characters"),
   });
 
