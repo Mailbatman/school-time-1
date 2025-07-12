@@ -1,9 +1,12 @@
 import { useAuth } from '@/contexts/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Header from '@/components/Header';
+import { Button } from '@/components/ui/button';
+import { useRouter } from 'next/router';
 
 const SuperAdminDashboard = () => {
   const { userProfile } = useAuth();
+  const router = useRouter();
 
   return (
     <ProtectedRoute roles={['SUPER_ADMIN', 'ADMIN']}>
@@ -18,6 +21,13 @@ const SuperAdminDashboard = () => {
             <p className="mt-1 text-md text-muted-foreground">
               Your role is: <strong>{userProfile?.role}</strong>
             </p>
+            <Button
+              size="lg"
+              onClick={() => router.push('/super-admin/schools')}
+              className="mt-8"
+            >
+              Manage Schools
+            </Button>
           </div>
         </main>
       </div>
