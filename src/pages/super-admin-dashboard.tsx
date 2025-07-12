@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Header from '@/components/Header';
@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { toast } from '@/components/ui/use-toast';
 import { Toaster } from '@/components/ui/toaster';
+import { useSuperAdminData } from '@/hooks/useSuperAdminData';
 import {
   Table,
   TableBody,
@@ -35,8 +36,7 @@ interface SuperAdminDashboardProps {
 
 const SuperAdminDashboard = ({ schools: initialSchools, enrollments: initialEnrollments }: SuperAdminDashboardProps) => {
   const { userProfile } = useAuth();
-  const [schools, setSchools] = useState<School[]>(initialSchools);
-  const [enrollments, setEnrollments] = useState<SchoolEnrollment[]>(initialEnrollments);
+  const { schools, enrollments, refetch } = useSuperAdminData({ schools: initialSchools, enrollments: initialEnrollments });
   const [editingSchool, setEditingSchool] = useState<School | null>(null);
   const [assigningAdmin, setAssigningAdmin] = useState<School | null>(null);
   const [adminEmail, setAdminEmail] = useState('');
@@ -49,10 +49,9 @@ const SuperAdminDashboard = ({ schools: initialSchools, enrollments: initialEnro
         body: JSON.stringify({ name: school.name, isActive: school.isActive }),
       });
       if (response.ok) {
-        const updatedSchool = await response.json();
-        setSchools(schools.map(s => s.id === updatedSchool.id ? updatedSchool : s));
         setEditingSchool(null);
         toast({ title: 'Success', description: 'School updated successfully.' });
+        refetch();
       } else {
         toast({ title: 'Error', description: 'Failed to update school.', variant: 'destructive' });
       }
@@ -78,6 +77,7 @@ const SuperAdminDashboard = ({ schools: initialSchools, enrollments: initialEnro
         toast({ title: 'Success', description: 'School admin assigned successfully.' });
         setAssigningAdmin(null);
         setAdminEmail('');
+        refetch();
       } else {
         const data = await response.json();
         toast({ title: 'Error', description: data.error || 'Failed to assign admin.', variant: 'destructive' });
@@ -95,12 +95,8 @@ const SuperAdminDashboard = ({ schools: initialSchools, enrollments: initialEnro
         body: JSON.stringify({ status }),
       });
       if (response.ok) {
-        const updatedEnrollment = await response.json();
-        setEnrollments(enrollments.map(e => e.id === id ? updatedEnrollment : e));
         toast({ title: 'Success', description: `Enrollment ${status.toLowerCase()}.` });
-        if (status === 'APPROVED') {
-          // The school is created on the backend. A page refresh will show the new school in the list below.
-        }
+        refetch();
       } else {
         toast({ title: 'Error', description: 'Failed to update enrollment.', variant: 'destructive' });
       }
