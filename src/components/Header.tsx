@@ -8,22 +8,6 @@ const Header = () => {
   const { user, initializing, signOut } = useContext(AuthContext);
   const router = useRouter();
 
-  const handleButtonClick = () => {
-    if (user && router.pathname === '/dashboard') {
-      signOut();
-      router.push('/');
-    } else {
-      router.push(user ? "/dashboard" : "/login");
-    }
-  };
-
-  const buttonText = () => {
-    if (user && router.pathname === '/dashboard') {
-      return "Log out";
-    }
-    return user ? "Dashboard" : "Login";
-  };
-
   return (
     <header className="w-full">
       <div className="flex justify-between items-center py-4 px-4 sm:px-6 lg:px-8">
@@ -32,13 +16,37 @@ const Header = () => {
         </div>
         {!initializing && (
           <div className="flex items-center space-x-4">
-            <Button 
-              onClick={handleButtonClick}
-              variant="default"
-              size="default"
-            >
-              {buttonText()}
-            </Button>
+            {user ? (
+              <>
+                <Button 
+                  onClick={() => router.push('/dashboard')}
+                  variant="ghost"
+                >
+                  Dashboard
+                </Button>
+                <Button 
+                  onClick={signOut}
+                  variant="default"
+                >
+                  Log out
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button 
+                  onClick={() => router.push('/login')}
+                  variant="ghost"
+                >
+                  Sign In
+                </Button>
+                <Button 
+                  onClick={() => router.push('/signup')}
+                  variant="default"
+                >
+                  Sign Up
+                </Button>
+              </>
+            )}
           </div>
         )}
       </div>
