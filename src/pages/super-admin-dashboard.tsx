@@ -37,31 +37,9 @@ const SuperAdminDashboard = ({ schools: initialSchools, enrollments: initialEnro
   const { userProfile } = useAuth();
   const [schools, setSchools] = useState<School[]>(initialSchools);
   const [enrollments, setEnrollments] = useState<SchoolEnrollment[]>(initialEnrollments);
-  const [newSchoolName, setNewSchoolName] = useState('');
   const [editingSchool, setEditingSchool] = useState<School | null>(null);
   const [assigningAdmin, setAssigningAdmin] = useState<School | null>(null);
   const [adminEmail, setAdminEmail] = useState('');
-
-  const handleCreateSchool = async () => {
-    if (!newSchoolName.trim()) return;
-    try {
-      const response = await fetch('/api/schools', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newSchoolName }),
-      });
-      if (response.ok) {
-        const newSchool = await response.json();
-        setSchools([...schools, newSchool]);
-        setNewSchoolName('');
-        toast({ title: 'Success', description: 'School created successfully.' });
-      } else {
-        toast({ title: 'Error', description: 'Failed to create school.', variant: 'destructive' });
-      }
-    } catch (error) {
-      toast({ title: 'Error', description: 'An error occurred.', variant: 'destructive' });
-    }
-  };
 
   const handleUpdateSchool = async (school: School) => {
     try {
@@ -180,17 +158,9 @@ const SuperAdminDashboard = ({ schools: initialSchools, enrollments: initialEnro
 
           <Card>
             <CardHeader>
-              <CardTitle>Manage Schools</CardTitle>
+              <CardTitle>All Schools</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex gap-2 mb-4">
-                <Input
-                  placeholder="New school name"
-                  value={newSchoolName}
-                  onChange={(e) => setNewSchoolName(e.target.value)}
-                />
-                <Button onClick={handleCreateSchool}>Add School</Button>
-              </div>
               <Table>
                 <TableHeader>
                   <TableRow>
