@@ -31,7 +31,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const adminUser = await prisma.user.findUnique({ where: { email: adminEmail } });
 
     if (!adminUser) {
-      return res.status(404).json({ error: 'Admin user not found' });
+      return res.status(404).json({ error: 'User not found. Please ask them to sign up first.' });
     }
 
     await prisma.user.update({
