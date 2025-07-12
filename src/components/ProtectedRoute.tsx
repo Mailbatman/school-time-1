@@ -1,18 +1,34 @@
 import { useContext, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { AuthContext } from '@/contexts/AuthContext';
+import { AuthContext, UserProfile } from '@/contexts/AuthContext';
 
-const publicRoutes = ['/', '/login', '/signup', '/forgot-password', '/magic-link-login', '/reset-password'];
+const publicRoutes = ['/', '/login', '/signup', '/forgot-password', '/reset-password'];
 
-const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, initializing } = useContext(AuthContext);
+interface ProtectedRouteProps {
+  children: React.ReactNode;
+  roles?: Array<UserProfile['role']>;
+}
+
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, roles }) => {
+  const { user, userProfile, initializing } = useContext(AuthContext);
   const router = useRouter();
 
   useEffect(() => {
-    if (!initializing && !user && !publicRoutes.includes(router.pathname)) {
+    if (initializing) return;
+
+    const isPublicRoute = publicRoutes.includes(router.pathname);
+
+    if (!user && !isPublicRoute) {
       router.push('/login');
+      return;
     }
-  }, [user, initializing, router]);
+
+    if (user && roles && roles.length > 0 && userProfile) {
+      if (!roles.includes(userProfile.role)) {
+        router.push('/unauthorized'); // Or some other appropriate page
+      }
+    }
+  }, [user, userProfile, initializing, router, roles]);
 
   if (initializing) {
     return (
@@ -23,6 +39,10 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   }
 
   if (!user && !publicRoutes.includes(router.pathname)) {
+    return null;
+  }
+  
+  if (roles && roles.length > 0 && (!userProfile || !roles.includes(userProfile.role))) {
     return null;
   }
 

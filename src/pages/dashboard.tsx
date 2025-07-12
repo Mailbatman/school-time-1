@@ -5,10 +5,10 @@ import { Button } from '@/components/ui/button';
 import ProtectedRoute from '@/components/ProtectedRoute';
 
 const DashboardPage = () => {
-  const { user, signOut } = useContext(AuthContext);
+  const { user, userProfile, signOut } = useContext(AuthContext);
 
   return (
-    <ProtectedRoute>
+    <ProtectedRoute roles={['ADMIN']}>
       <div className="flex flex-col min-h-screen bg-background">
         <Header />
         <main className="flex-grow flex flex-col items-center justify-center text-center px-4">
@@ -19,6 +19,11 @@ const DashboardPage = () => {
             {user && (
               <p className="mt-4 text-lg md:text-xl text-muted-foreground">
                 You are logged in as {user.email}
+              </p>
+            )}
+            {userProfile && (
+              <p className="mt-2 text-md text-muted-foreground">
+                Your role is: <strong>{userProfile.role}</strong>
               </p>
             )}
             <Button

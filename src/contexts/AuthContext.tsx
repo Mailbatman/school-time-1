@@ -1,12 +1,19 @@
 import React, { createContext, useState, ReactNode, useContext, useEffect } from 'react';
 import { createClient } from '@/util/supabase/component';
-import { User } from '@supabase/supabase-js';
+import { User as SupabaseUser } from '@supabase/supabase-js';
 import { useToast } from "@/components/ui/use-toast";
 import { useRouter } from 'next/router';
 
+export interface UserProfile {
+  id: string;
+  email: string;
+  role: 'USER' | 'ADMIN';
+}
+
 interface AuthContextType {
-  user: User | null;
-  createUser: (user: User) => Promise<void>;
+  user: SupabaseUser | null;
+  userProfile: UserProfile | null;
+  createUser: (user: SupabaseUser) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -16,34 +23,63 @@ interface AuthContextType {
 
 export const AuthContext = createContext<AuthContextType>({
   user: null,
+  userProfile: null,
   createUser: async () => {},
   signIn: async () => {},
   signUp: async () => {},
   signOut: async () => {},
   resetPassword: async () => {},
-  initializing: false
+  initializing: true
 });
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<SupabaseUser | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [initializing, setInitializing] = useState(true);
   const supabase = createClient();
   const { toast } = useToast();
 
-  React.useEffect(() => {
-    const fetchSession = async () => {
+  const fetchUserProfile = async (user: SupabaseUser | null) => {
+    if (!user) {
+      setUserProfile(null);
+      return;
+    }
+    try {
+      const { data, error } = await supabase
+        .from('User')
+        .select('id, email, role')
+        .eq('id', user.id)
+        .single();
+
+      if (error) {
+        console.warn('Could not fetch user profile:', error.message);
+        setUserProfile(null);
+        return;
+      }
+      
+      setUserProfile(data as UserProfile);
+    } catch (error: any) {
+      console.error('Error fetching user profile:', error.message);
+      setUserProfile(null);
+    }
+  };
+
+  useEffect(() => {
+    const fetchSessionAndProfile = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
+      await fetchUserProfile(user);
       setInitializing(false);
     };
 
-    fetchSession();
+    fetchSessionAndProfile();
 
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      // The setTimeout is necessary to allow Supabase functions to trigger inside onAuthStateChange
       setTimeout(async () => {
-        setUser(session?.user ?? null);
+        const authUser = session?.user ?? null;
+        setUser(authUser);
+        await fetchUserProfile(authUser);
         setInitializing(false);
       }, 0);
     });
@@ -53,7 +89,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
   }, []);
 
-  const createUser = async (user: User) => {
+  const createUser = async (user: SupabaseUser) => {
     try {
       const { data, error } = await supabase
         .from('User')
@@ -88,6 +124,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (!error && data.user) {
       await createUser(data.user);
+      await fetchUserProfile(data.user);
     }
     
     if (error) {
@@ -129,6 +166,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         description: error.message,
       });
     } else {
+      setUserProfile(null);
       toast({
         title: "Success",
         description: "You have successfully signed out",
@@ -149,6 +187,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   return (
     <AuthContext.Provider value={{
       user,
+      userProfile,
       createUser,
       signIn,
       signUp,
