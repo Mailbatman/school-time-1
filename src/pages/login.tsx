@@ -1,25 +1,21 @@
 import { useFormik } from 'formik';
-import React, { useContext, useState, useEffect } from 'react';
+import React, { useContext, useState } from 'react';
 import * as Yup from 'yup';
 import { useRouter } from 'next/navigation';
 import { AuthContext } from '@/contexts/AuthContext';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
-import GoogleButton from '@/components/GoogleButton';
 import Logo from '@/components/Logo';
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { useIsIFrame } from '@/hooks/useIsIFrame';
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 const LoginPage = () => {
   const router = useRouter();
   const { initializing, signIn } = useContext(AuthContext);
   const [showPw, setShowPw] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const { isIframe } = useIsIFrame();
   const { toast } = useToast();
 
   const handleLogin = async (e: any) => {
@@ -77,28 +73,9 @@ const LoginPage = () => {
             <CardTitle className="text-center">Log in</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-col gap-4">
-              <GoogleButton />
-              <Button
-                onClick={(e) => {
-                  e.preventDefault();
-                  router.push('/magic-link-login');
-                }}
-                variant="outline"
-              >
-                Continue with Magic Link
-              </Button>
-            </div>
             <form onSubmit={handleLogin}>
               <div className="flex flex-col gap-6">
-                <div className="flex items-center w-full">
-                  <Separator className="flex-1" />
-                  <span className="mx-4 text-muted-foreground text-sm font-semibold whitespace-nowrap">or</span>
-                  <Separator className="flex-1" />
-                </div>
-
                 <div className="flex flex-col gap-6">
-                  <p className="text-center text-sm text-muted-foreground">Enter your credentials</p>
                   <div className="flex flex-col gap-4">
                     <div className="flex flex-col gap-2">
                       <Label htmlFor="email">Email</Label>
@@ -110,6 +87,7 @@ const LoginPage = () => {
                         value={formik.values.email}
                         onChange={formik.handleChange}
                         onBlur={formik.handleBlur}
+                        className="py-6"
                       />
                       {formik.touched.email && formik.errors.email && (
                         <p className="text-destructive text-xs">{formik.errors.email}</p>
@@ -127,6 +105,7 @@ const LoginPage = () => {
                           value={formik.values.password}
                           onChange={formik.handleChange}
                           onBlur={formik.handleBlur}
+                          className="py-6"
                         />
                         <Button
                           type="button"

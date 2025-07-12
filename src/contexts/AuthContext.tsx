@@ -9,8 +9,6 @@ interface AuthContextType {
   createUser: (user: User) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
-  signInWithMagicLink: (email: string) => Promise<void>;
-  signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   initializing: boolean;
@@ -21,8 +19,6 @@ export const AuthContext = createContext<AuthContextType>({
   createUser: async () => {},
   signIn: async () => {},
   signUp: async () => {},
-  signInWithMagicLink: async () => {},
-  signInWithGoogle: async () => {},
   signOut: async () => {},
   resetPassword: async () => {},
   initializing: false
@@ -133,49 +129,39 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const signInWithMagicLink = async (email: string) => {
-    const { data, error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        shouldCreateUser: false,
-        emailRedirectTo: `${window.location.origin}/dashboard`,
-      },
-    });
-    if (!error && data.user) {
-      await createUser(data.user);
-    }
-    if (error) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message,
-      });
-      throw error;
-    } else {
-      toast({
-        title: "Success",
-        description: "Check your email for the login link",
-      });
-    }
-  };
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+  return (
+    <AuthContext.Provider value={{
+      user,
+      createUser,
+      signIn,
+      signUp,
+      signInWithMagicLink,
+      signInWithGoogle,
+      signOut,
+      resetPassword,
+      initializing,
 
-  const signInWithGoogle = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google' as Provider,
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`
-      }
-    });
-    
-    if (error) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message,
-      });
-      throw error;
-    }
-  };
+    }}>
+      {children}
+    </AuthContext.Provider>
+  );
+=======
+  return (
+    <AuthContext.Provider value={{
+      user,
+      createUser,
+      signIn,
+      signUp,
+      signOut,
+      resetPassword,
+      initializing,
+
+    }}>
+      {children}
+    </AuthContext.Provider>
+  );
 
   const signOut = async () => {
     const { error } = await supabase.auth.signOut();
