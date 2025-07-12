@@ -29,17 +29,15 @@ const ForgotPasswordPage = () => {
       try {
         await resetPassword(values.email);
         toast({
-          title: "Success",
-          description: 'Password reset email sent. Please check your inbox.',
+          title: "Check your email",
+          description: "If an account with that email exists, we've sent a link to reset your password.",
           variant: "default",
         });
-        // Optionally, you can redirect the user to a confirmation page
-        // router.push('/reset-password-confirmation');
-      } catch (error) {
+      } catch (error: any) {
         console.error(error);
         toast({
           title: "Error",
-          description: 'Failed to send reset email. Please try again.',
+          description: error.message || 'An unexpected error occurred. Please try again.',
           variant: "destructive",
         });
       } finally {

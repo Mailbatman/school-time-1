@@ -141,17 +141,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       redirectTo: `${window.location.origin}/reset-password`,
     });
     if (error) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message,
-      });
       throw error;
-    } else {
-      toast({
-        title: "Success",
-        description: "Check your email for the password reset link",
-      });
     }
   };
 
