@@ -20,10 +20,7 @@ const formSchema = z.object({
   state: z.string().min(2, 'State is required'),
   zipCode: z.string().min(5, 'Zip code is required'),
   country: z.string().min(2, 'Country is required'),
-  estimatedStudents: z.preprocess(
-    (a) => parseInt(z.string().parse(a), 10),
-    z.number().positive('Must be a positive number')
-  ),
+  estimatedStudents: z.coerce.number().positive('Must be a positive number'),
 });
 
 const EnrollPage = () => {
