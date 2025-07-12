@@ -3,7 +3,6 @@ import { useRouter } from 'next/navigation';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
 import { AuthContext } from '@/contexts/AuthContext';
-import Logo from '@/components/Logo';
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,10 +51,6 @@ const ForgotPasswordPage = () => {
   return (
     <div className="flex h-screen bg-background justify-center items-center">
       <div className="flex flex-col gap-5 h-auto">
-        <div className="w-full flex justify-center cursor-pointer" onClick={() => router.push("/")}>
-          <Logo />
-        </div>
-
         <Card className="w-full md:w-[440px]">
           <CardHeader>
             <CardTitle className="text-center">Forgot Password</CardTitle>

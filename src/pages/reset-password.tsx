@@ -4,7 +4,6 @@ import { useFormik } from 'formik';
 import * as Yup from 'yup';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import { AuthContext } from '@/contexts/AuthContext';
-import Logo from '@/components/Logo';
 import { createClient } from '@/util/supabase/component';
 
 const ResetPasswordPage = () => {
@@ -56,10 +55,6 @@ const ResetPasswordPage = () => {
   return (
     <div className="flex h-screen bg-neutral-900 justify-center items-center">
       <div className="flex flex-col gap-7 h-[600px]">
-        <div className="w-full flex justify-center cursor-pointer" onClick={() => router.push("/")}>
-          <Logo />
-        </div>
-
         <form
           onSubmit={formik.handleSubmit}
           className="w-full md:w-[440px] p-0 md:p-12 rounded-lg bg-transparent md:bg-neutral-800 border-0 md:border border-neutral-700"
