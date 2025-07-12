@@ -4,7 +4,6 @@ import * as Yup from 'yup';
 import { useRouter } from 'next/navigation';
 import { AuthContext } from '@/contexts/AuthContext';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
-import Logo from '@/components/Logo';
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -64,10 +63,6 @@ const LoginPage = () => {
   return (
     <div className="flex h-screen justify-center items-center bg-background">
       <div className="flex flex-col gap-5 h-auto">
-        <div className="w-full flex justify-center cursor-pointer" onClick={() => router.push("/")}>
-          <Logo />
-        </div>
-
         <Card className="w-full md:w-[440px]" onKeyDown={handleKeyPress}>
           <CardHeader>
             <CardTitle className="text-center">Log in</CardTitle>
