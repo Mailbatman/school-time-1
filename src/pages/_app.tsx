@@ -5,9 +5,13 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import RoleBasedRedirect from '@/components/RoleBasedRedirect';
 import { Toaster } from "@/components/ui/toaster"
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/router';
+
+const publicPages = ['/', '/login', '/signup', '/forgot-password', '/reset-password', '/enroll', '/unauthorized', '/error'];
 
 export default function App({ Component, pageProps }: AppProps) {
   const [mounted, setMounted] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     const root = document.documentElement;
@@ -26,14 +30,20 @@ export default function App({ Component, pageProps }: AppProps) {
     return null;
   }
 
+  const isPublicPage = publicPages.includes(router.pathname);
+
   return (
     <div className="min-h-screen">
       <AuthProvider>
-        <ProtectedRoute>
-          <RoleBasedRedirect>
-            <Component {...pageProps} />
-          </RoleBasedRedirect>
-        </ProtectedRoute>
+        {isPublicPage ? (
+          <Component {...pageProps} />
+        ) : (
+          <ProtectedRoute>
+            <RoleBasedRedirect>
+              <Component {...pageProps} />
+            </RoleBasedRedirect>
+          </ProtectedRoute>
+        )}
         <Toaster />
       </AuthProvider>
     </div>
