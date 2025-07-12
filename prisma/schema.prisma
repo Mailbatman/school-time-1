@@ -9,28 +9,63 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 model User {
-  id         String   @id @db.Uuid
-  email      String   @unique
-  firstName  String?
-  lastName   String?
-  createdAt  DateTime @default(now())
-  role       Role     @default(PARENT_STUDENT)
-  schoolId   String?
-  school     School?  @relation(fields: [schoolId], references: [id])
+  id              String   @id @db.Uuid
+  email           String   @unique
+  firstName       String?
+  lastName        String?
+  createdAt       DateTime @default(now())
+  role            Role     @default(PARENT_STUDENT)
+  schoolId        String?
+  school          School?  @relation(fields: [schoolId], references: [id])
+  students        Student[] // For PARENT_STUDENT role
+  teachingClasses Class[]  @relation("ClassTeachers") // For TEACHER role
 
   @@index([role])
   @@index([schoolId])
 }
 
 model School {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id        String    @id @default(cuid())
+  name      String    @unique
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   users     User[]
+  classes   Class[]
+  students  Student[]
 
   @@index([isActive])
+}
+
+model Class {
+  id        String    @id @default(cuid())
+  name      String
+  schoolId  String
+  school    School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  students  Student[]
+  teachers  User[]    @relation("ClassTeachers")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([schoolId])
+}
+
+model Student {
+  id        String   @id @default(cuid())
+  firstName String
+  lastName  String
+  schoolId  String
+  school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  classId   String
+  class     Class    @relation(fields: [classId], references: [id])
+  parentId  String   @db.Uuid
+  parent    User     @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([schoolId])
+  @@index([classId])
+  @@index([parentId])
 }
 
 enum Role {
