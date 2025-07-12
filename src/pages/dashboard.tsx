@@ -1,40 +1,10 @@
-import { useContext } from 'react';
-import { AuthContext } from '@/contexts/AuthContext';
-import Header from '@/components/Header';
-import { Button } from '@/components/ui/button';
 import ProtectedRoute from '@/components/ProtectedRoute';
 
 const DashboardPage = () => {
-  const { userProfile, signOut } = useContext(AuthContext);
-
   return (
-    <ProtectedRoute roles={['SUPER_ADMIN']}>
-      <div className="flex flex-col min-h-screen bg-background">
-        <Header />
-        <main className="flex-grow flex flex-col items-center justify-center text-center px-4">
-          <div className="max-w-3xl">
-            <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-primary">
-              Welcome to your Dashboard
-            </h1>
-            {userProfile && (
-              <p className="mt-4 text-lg md:text-xl text-muted-foreground">
-                You are logged in as {userProfile.firstName} {userProfile.lastName}
-              </p>
-            )}
-            {userProfile && (
-              <p className="mt-2 text-md text-muted-foreground">
-                Your role is: <strong>{userProfile.role}</strong>
-              </p>
-            )}
-            <Button
-              size="lg"
-              onClick={signOut}
-              className="mt-8"
-            >
-              Log Out
-            </Button>
-          </div>
-        </main>
+    <ProtectedRoute>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gray-900 dark:border-white"></div>
       </div>
     </ProtectedRoute>
   );
