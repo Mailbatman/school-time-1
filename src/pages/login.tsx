@@ -24,13 +24,21 @@ const LoginPage = () => {
       const { email, password } = formik.values;
       await signIn(email, password);
       router.push('/dashboard');
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      toast({
-        variant: "destructive",
-        title: "Login failed",
-        description: "Please check your credentials and try again.",
-      });
+      if (error.message && error.message.includes('Invalid login credentials')) {
+        toast({
+          variant: "destructive",
+          title: "Login failed",
+          description: "Invalid email or password. Please try again.",
+        });
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Login failed",
+          description: "An unexpected error occurred. Please try again.",
+        });
+      }
     } finally {
       setIsLoading(false);
     }
