@@ -2,7 +2,7 @@ import { useContext, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { AuthContext, Role } from '@/contexts/AuthContext';
 
-const publicRoutes = ['/', '/login', '/signup', '/forgot-password', '/reset-password'];
+const publicRoutes = ['/', '/login', '/signup', '/forgot-password', '/reset-password', '/enroll'];
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
