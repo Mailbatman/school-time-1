@@ -4,7 +4,7 @@ import { User as SupabaseUser } from '@supabase/supabase-js';
 import { useToast } from "@/components/ui/use-toast";
 import { useRouter } from 'next/router';
 
-export type Role = 'SUPER_ADMIN' | 'SCHOOL_ADMIN' | 'TEACHER' | 'PARENT_STUDENT';
+export type Role = 'USER' | 'ADMIN' | 'SUPER_ADMIN' | 'SCHOOL_ADMIN' | 'TEACHER' | 'PARENT_STUDENT';
 
 export interface UserProfile {
   id: string;
