@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import { useRouter } from 'next/router';
 import Header from '@/components/Header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,6 +27,8 @@ const formSchema = z.object({
 const EnrollPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFetchingPincode, setIsFetchingPincode] = useState(false);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const router = useRouter();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -72,8 +75,10 @@ const EnrollPage = () => {
       });
 
       if (response.ok) {
-        toast({ title: 'Application Submitted!', description: 'Thank you for your interest. We will review your application and get back to you soon.' });
-        form.reset();
+        setShowSuccessMessage(true);
+        setTimeout(() => {
+          router.push('/');
+        }, 3000);
       } else {
         const { error } = await response.json();
         toast({ title: 'Submission Failed', description: error, variant: 'destructive' });
@@ -94,59 +99,67 @@ const EnrollPage = () => {
             <CardTitle>Enroll Your School</CardTitle>
           </CardHeader>
           <CardContent>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <FormField control={form.control} name="schoolName" render={({ field }) => (
-                  <FormItem><FormLabel>School Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={form.control} name="contactName" render={({ field }) => (
-                  <FormItem><FormLabel>Contact Person</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={form.control} name="contactEmail" render={({ field }) => (
-                  <FormItem><FormLabel>Contact Email</FormLabel><FormControl><Input type="email" {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={form.control} name="contactPhone" render={({ field }) => (
-                  <FormItem><FormLabel>Contact Phone</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={form.control} name="website" render={({ field }) => (
-                  <FormItem><FormLabel>Website (Optional)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={form.control} name="address" render={({ field }) => (
-                  <FormItem><FormLabel>Address</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField control={form.control} name="city" render={({ field }) => (
-                    <FormItem><FormLabel>City</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+            {showSuccessMessage ? (
+              <div className="text-center p-8">
+                <h2 className="text-2xl font-bold text-green-600 mb-4">Application Submitted!</h2>
+                <p>Thank you for your interest. We will review your application and get back to you soon.</p>
+                <p className="mt-2">You will be redirected to the home page shortly.</p>
+              </div>
+            ) : (
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                  <FormField control={form.control} name="schoolName" render={({ field }) => (
+                    <FormItem><FormLabel>School Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                   )} />
-                  <FormField control={form.control} name="state" render={({ field }) => (
-                    <FormItem><FormLabel>State / Province</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormField control={form.control} name="contactName" render={({ field }) => (
+                    <FormItem><FormLabel>Contact Person</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                   )} />
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField control={form.control} name="zipCode" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>ZIP / Postal Code</FormLabel>
-                      <FormControl>
-                        <Input 
-                          {...field} 
-                          onChange={(e) => {
-                            field.onChange(e);
-                            handlePincodeChange(e.target.value);
-                          }}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
+                  <FormField control={form.control} name="contactEmail" render={({ field }) => (
+                    <FormItem><FormLabel>Contact Email</FormLabel><FormControl><Input type="email" {...field} /></FormControl><FormMessage /></FormItem>
                   )} />
-                </div>
-                <FormField control={form.control} name="estimatedStudents" render={({ field }) => (
-                  <FormItem><FormLabel>Estimated Number of Students</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <Button type="submit" disabled={isSubmitting} className="w-full">
-                  {isSubmitting ? 'Submitting...' : 'Submit Application'}
-                </Button>
-              </form>
-            </Form>
+                  <FormField control={form.control} name="contactPhone" render={({ field }) => (
+                    <FormItem><FormLabel>Contact Phone</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={form.control} name="website" render={({ field }) => (
+                    <FormItem><FormLabel>Website (Optional)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={form.control} name="address" render={({ field }) => (
+                    <FormItem><FormLabel>Address</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField control={form.control} name="city" render={({ field }) => (
+                      <FormItem><FormLabel>City</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    <FormField control={form.control} name="state" render={({ field }) => (
+                      <FormItem><FormLabel>State / Province</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormMessage>
+                    )} />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField control={form.control} name="zipCode" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>ZIP / Postal Code</FormLabel>
+                        <FormControl>
+                          <Input 
+                            {...field} 
+                            onChange={(e) => {
+                              field.onChange(e);
+                              handlePincodeChange(e.target.value);
+                            }}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  </div>
+                  <FormField control={form.control} name="estimatedStudents" render={({ field }) => (
+                    <FormItem><FormLabel>Estimated Number of Students</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <Button type="submit" disabled={isSubmitting || isFetchingPincode} className="w-full">
+                    {isSubmitting ? 'Submitting...' : 'Submit Application'}
+                  </Button>
+                </form>
+              </Form>
+            )}
           </CardContent>
         </Card>
       </main>
