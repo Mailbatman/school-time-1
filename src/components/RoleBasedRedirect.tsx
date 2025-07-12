@@ -27,7 +27,7 @@ const RoleBasedRedirect = ({ children }: { children: React.ReactNode }) => {
     }
   }, [userProfile, initializing, router]);
 
-  return &lt;>{children}&lt;/>;
+  return <>{children}</>;
 };
 
 export default RoleBasedRedirect;
