@@ -4,18 +4,22 @@ import { User as SupabaseUser } from '@supabase/supabase-js';
 import { useToast } from "@/components/ui/use-toast";
 import { useRouter } from 'next/router';
 
+export type Role = 'SUPER_ADMIN' | 'SCHOOL_ADMIN' | 'TEACHER' | 'PARENT_STUDENT';
+
 export interface UserProfile {
   id: string;
   email: string;
-  role: 'USER' | 'ADMIN';
+  firstName: string | null;
+  lastName: string | null;
+  role: Role;
 }
 
 interface AuthContextType {
   user: SupabaseUser | null;
   userProfile: UserProfile | null;
-  createUser: (user: SupabaseUser) => Promise<void>;
+  createUser: (user: SupabaseUser, firstName?: string, lastName?: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string, firstName: string, lastName: string) => Promise<void>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   initializing: boolean;
@@ -48,7 +52,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       const { data, error } = await supabase
         .from('User')
-        .select('id, email, role')
+        .select('id, email, firstName, lastName, role')
         .eq('id', user.id)
         .single();
 
@@ -89,7 +93,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
   }, []);
 
-  const createUser = async (user: SupabaseUser) => {
+  const createUser = async (user: SupabaseUser, firstName?: string, lastName?: string) => {
     try {
       const { data, error } = await supabase
         .from('User')
@@ -105,7 +109,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           .insert({
             id: user.id,
             email: user.email,
-            role: 'USER',
+            firstName,
+            lastName,
+            role: 'PARENT_STUDENT',
           });
         if (insertError) {
           throw insertError;
@@ -123,7 +129,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const signIn = async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (!error && data.user) {
-      await createUser(data.user);
       await fetchUserProfile(data.user);
     }
     
@@ -137,14 +142,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const signUp = async (email: string, password: string) => {
+  const signUp = async (email: string, password: string, firstName: string, lastName: string) => {
     const { data, error } = await supabase.auth.signUp({
       email,
       password
     });
 
     if (data.user) {
-      await createUser(data.user);
+      await createUser(data.user, firstName, lastName);
     }
 
     if (error) {

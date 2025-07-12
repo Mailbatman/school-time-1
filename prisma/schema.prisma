@@ -11,11 +11,15 @@ datasource db {
 model User {
   id         String   @id @db.Uuid
   email      String   @unique
+  firstName  String?
+  lastName   String?
   createdAt  DateTime @default(now())
-  role       Role     @default(USER)
+  role       Role     @default(PARENT_STUDENT)
 }
 
 enum Role {
-  USER
-  ADMIN
+  SUPER_ADMIN
+  SCHOOL_ADMIN
+  TEACHER
+  PARENT_STUDENT
 }
