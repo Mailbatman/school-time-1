@@ -53,6 +53,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const school = await prisma.school.create({
           data: {
             name: enrollment.schoolName,
+            enrollmentId: enrollment.id,
           },
         });
 

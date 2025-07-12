@@ -26,14 +26,16 @@ model User {
 }
 
 model School {
-  id        String    @id @default(cuid())
-  name      String    @unique
-  isActive  Boolean   @default(true)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  users     User[]
-  classes   Class[]
-  students  Student[]
+  id           String            @id @default(cuid())
+  name         String            @unique
+  isActive     Boolean           @default(true)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  users        User[]
+  classes      Class[]
+  students     Student[]
+  enrollmentId String?           @unique
+  enrollment   SchoolEnrollment? @relation(fields: [enrollmentId], references: [id])
 
   @@index([isActive])
 }
@@ -91,6 +93,7 @@ model SchoolEnrollment {
   zipCode           String
   estimatedStudents Int
   status            EnrollmentStatus @default(PENDING)
+  school            School?
 
   approvedById      String?          @db.Uuid
   approvedBy        User?            @relation(fields: [approvedById], references: [id])
