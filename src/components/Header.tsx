@@ -20,7 +20,12 @@ const Header = () => {
                 >
                   Dashboard
                 </Button>
-
+                <Button 
+                  onClick={signOut}
+                  variant="default"
+                >
+                  Log out
+                </Button>
               </>
             ) : (
               <>

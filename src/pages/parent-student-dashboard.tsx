@@ -1,10 +1,9 @@
 import { useAuth } from '@/contexts/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Header from '@/components/Header';
-import { Button } from '@/components/ui/button';
 
 const ParentStudentDashboard = () => {
-  const { userProfile, signOut } = useAuth();
+  const { userProfile } = useAuth();
 
   return (
     <ProtectedRoute roles={['PARENT_STUDENT', 'USER']}>
@@ -19,13 +18,6 @@ const ParentStudentDashboard = () => {
             <p className="mt-1 text-md text-muted-foreground">
               Your role is: <strong>{userProfile?.role}</strong>
             </p>
-            <Button
-              size="lg"
-              onClick={signOut}
-              className="mt-8"
-            >
-              Log Out
-            </Button>
           </div>
         </main>
       </div>

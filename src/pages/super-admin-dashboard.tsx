@@ -1,10 +1,9 @@
 import { useAuth } from '@/contexts/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Header from '@/components/Header';
-import { Button } from '@/components/ui/button';
 
 const SuperAdminDashboard = () => {
-  const { userProfile, signOut } = useAuth();
+  const { userProfile } = useAuth();
 
   return (
     <ProtectedRoute roles={['SUPER_ADMIN', 'ADMIN']}>
@@ -19,13 +18,6 @@ const SuperAdminDashboard = () => {
             <p className="mt-1 text-md text-muted-foreground">
               Your role is: <strong>{userProfile?.role}</strong>
             </p>
-            <Button
-              size="lg"
-              onClick={signOut}
-              className="mt-8"
-            >
-              Log Out
-            </Button>
           </div>
         </main>
       </div>
