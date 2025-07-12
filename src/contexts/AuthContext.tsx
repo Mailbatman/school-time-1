@@ -1,6 +1,6 @@
 import React, { createContext, useState, ReactNode, useContext, useEffect } from 'react';
 import { createClient } from '@/util/supabase/component';
-import { User, Provider } from '@supabase/supabase-js';
+import { User } from '@supabase/supabase-js';
 import { useToast } from "@/components/ui/use-toast";
 import { useRouter } from 'next/router';
 
@@ -129,40 +129,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
->>>>>>> REPLACE
-<<<<<<< SEARCH
-  return (
-    <AuthContext.Provider value={{
-      user,
-      createUser,
-      signIn,
-      signUp,
-      signInWithMagicLink,
-      signInWithGoogle,
-      signOut,
-      resetPassword,
-      initializing,
-
-    }}>
-      {children}
-    </AuthContext.Provider>
-  );
-=======
-  return (
-    <AuthContext.Provider value={{
-      user,
-      createUser,
-      signIn,
-      signUp,
-      signOut,
-      resetPassword,
-      initializing,
-
-    }}>
-      {children}
-    </AuthContext.Provider>
-  );
-
   const signOut = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) {
@@ -205,12 +171,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       createUser,
       signIn,
       signUp,
-      signInWithMagicLink,
-      signInWithGoogle,
       signOut,
       resetPassword,
       initializing,
-
     }}>
       {children}
     </AuthContext.Provider>
