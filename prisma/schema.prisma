@@ -15,6 +15,8 @@ model User {
   lastName   String?
   createdAt  DateTime @default(now())
   role       Role     @default(PARENT_STUDENT)
+
+  @@index([role])
 }
 
 enum Role {

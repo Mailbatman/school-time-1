@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import Header from "@/components/Header";
 import { motion } from "framer-motion";
 import { useRouter } from "next/router";
+import { GetServerSideProps } from "next";
 
 export default function Home() {
   const router = useRouter();
@@ -51,3 +52,9 @@ export default function Home() {
     </div>
   );
 }
+
+export const getServerSideProps: GetServerSideProps = async () => {
+  return {
+    props: {},
+  };
+};
