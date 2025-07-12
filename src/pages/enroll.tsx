@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -25,6 +25,7 @@ const formSchema = z.object({
 
 const EnrollPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isFetchingPincode, setIsFetchingPincode] = useState(false);
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -40,6 +41,26 @@ const EnrollPage = () => {
       estimatedStudents: 100,
     },
   });
+
+  const handlePincodeChange = useCallback(async (pincode: string) => {
+    if (pincode.length === 6) {
+      setIsFetchingPincode(true);
+      try {
+        const response = await fetch(`/api/pincode/${pincode}`);
+        if (response.ok) {
+          const { city, state } = await response.json();
+          form.setValue('city', city);
+          form.setValue('state', state);
+        } else {
+          toast({ title: 'Invalid Pincode', description: 'Could not fetch details for the entered pincode.', variant: 'destructive' });
+        }
+      } catch (error) {
+        toast({ title: 'An Error Occurred', description: 'Please try again later.', variant: 'destructive' });
+      } finally {
+        setIsFetchingPincode(false);
+      }
+    }
+  }, [form]);
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsSubmitting(true);
@@ -103,7 +124,19 @@ const EnrollPage = () => {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField control={form.control} name="zipCode" render={({ field }) => (
-                    <FormItem><FormLabel>ZIP / Postal Code</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem>
+                      <FormLabel>ZIP / Postal Code</FormLabel>
+                      <FormControl>
+                        <Input 
+                          {...field} 
+                          onChange={(e) => {
+                            field.onChange(e);
+                            handlePincodeChange(e.target.value);
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
                   )} />
                 </div>
                 <FormField control={form.control} name="estimatedStudents" render={({ field }) => (
