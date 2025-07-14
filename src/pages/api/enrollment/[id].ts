@@ -86,7 +86,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
         // 4. Send the welcome/password setup email
         const { error: inviteError } = await supabaseAdmin.auth.admin.generateLink({
-            type: 'magiclink',
+            type: 'invite',
             email: enrollment.contactEmail,
         });
 
