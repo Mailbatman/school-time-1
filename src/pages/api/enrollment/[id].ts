@@ -85,13 +85,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         });
 
         // 4. Send the welcome/password setup email
-        const { error: inviteError } = await supabaseAdmin.auth.admin.generateLink({
-            type: 'invite',
+        const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+            type: 'recovery',
             email: enrollment.contactEmail,
         });
 
-        if (inviteError) {
-            console.error('Failed to send magic link email:', inviteError);
+        if (linkError) {
+            console.error('Failed to generate password recovery link:', linkError);
             // Continue even if email fails, as the accounts are created.
         }
       }
