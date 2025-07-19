@@ -57,26 +57,35 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           },
         });
 
-        // 2. Create the school admin user in Supabase Auth
-        const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-          email: enrollment.contactEmail,
-          email_confirm: true, // Automatically confirm the email
-        });
+        // 2. Find or create the school admin user
+        let authUser;
+        const { data: existingAuthUser, error: getUserError } = await supabaseAdmin.auth.admin.getUserByEmail(enrollment.contactEmail);
 
-        if (authError) {
-          // If user already exists, we can try to find them and assign them.
-          // For now, we'll throw an error to keep it simple.
-          throw new Error(`Failed to create auth user: ${authError.message}`);
+        if (existingAuthUser?.user) {
+          authUser = existingAuthUser.user;
+        } else {
+          const { data: newAuthUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
+            email: enrollment.contactEmail,
+            email_confirm: true,
+          });
+          if (createError) {
+            throw new Error(`Failed to create auth user: ${createError.message}`);
+          }
+          if (!newAuthUser?.user) {
+            throw new Error('User was not created in Supabase Auth.');
+          }
+          authUser = newAuthUser.user;
         }
 
-        if (!authData.user) {
-          throw new Error('User was not created in Supabase Auth.');
-        }
-
-        // 3. Create the user in our public.User table
-        await prisma.user.create({
-          data: {
-            id: authData.user.id,
+        // 3. Create or update the user in our public.User table
+        await prisma.user.upsert({
+          where: { id: authUser.id },
+          update: {
+            schoolId: school.id,
+            role: 'SCHOOL_ADMIN',
+          },
+          create: {
+            id: authUser.id,
             email: enrollment.contactEmail,
             firstName: enrollment.contactName,
             role: 'SCHOOL_ADMIN',
