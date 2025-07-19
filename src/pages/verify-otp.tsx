@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
@@ -12,12 +12,13 @@ import PasswordStrength from '@/components/PasswordStrength';
 
 const VerifyOtpPage = () => {
   const router = useRouter();
-  const { email } = router.query;
+  const { email: emailFromQuery } = router.query;
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const supabase = createClient();
 
   const validationSchema = Yup.object().shape({
+    email: Yup.string().email("Invalid email address").required("Email is required"),
     otp: Yup.string().required("OTP is required").length(6, "OTP must be 6 digits"),
     password: Yup.string().required("Password is required").min(8, "Password must be at least 8 characters"),
     confirmPassword: Yup.string()
@@ -27,6 +28,7 @@ const VerifyOtpPage = () => {
 
   const formik = useFormik({
     initialValues: {
+      email: '',
       otp: '',
       password: '',
       confirmPassword: '',
@@ -35,20 +37,17 @@ const VerifyOtpPage = () => {
     onSubmit: async (values) => {
       setIsLoading(true);
       try {
-        if (typeof email !== 'string') {
-          throw new Error("Invalid email address.");
-        }
-
-        const { error: verifyError } = await supabase.auth.verifyOtp({
-          email,
+        const { data: { session }, error: sessionError } = await supabase.auth.verifyOtp({
+          email: values.email,
           token: values.otp,
           type: 'recovery',
         });
 
-        if (verifyError) {
-          throw verifyError;
+        if (sessionError || !session) {
+          throw sessionError || new Error("Invalid OTP or session could not be created.");
         }
 
+        // Now that the user is signed in, update the password
         const { error: updateError } = await supabase.auth.updateUser({
           password: values.password,
         });
@@ -62,9 +61,13 @@ const VerifyOtpPage = () => {
           description: "Your password has been reset successfully. Please login.",
           variant: "default",
         });
+        
+        // Sign out the user to force a new login with the new password
+        await supabase.auth.signOut();
         router.push('/login');
+
       } catch (error: any) {
-        console.error(error);
+        console.error("Verify OTP Error:", error);
         toast({
           title: "Error",
           description: error.message || 'An unexpected error occurred. Please try again.',
@@ -76,6 +79,13 @@ const VerifyOtpPage = () => {
     },
   });
 
+  useEffect(() => {
+    if (typeof emailFromQuery === 'string') {
+      formik.setFieldValue('email', emailFromQuery);
+    }
+  }, [emailFromQuery, formik.setFieldValue]);
+
+
   return (
     <div className="flex h-screen bg-background justify-center items-center">
       <Card className="w-full md:w-[440px]">
@@ -85,6 +95,22 @@ const VerifyOtpPage = () => {
         <CardContent>
           <form onSubmit={formik.handleSubmit}>
             <div className="flex flex-col gap-6">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  placeholder="Enter your email"
+                  value={formik.values.email}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  disabled={!!emailFromQuery}
+                />
+                {formik.touched.email && formik.errors.email && (
+                  <p className="text-destructive text-xs">{formik.errors.email}</p>
+                )}
+              </div>
               <div className="flex flex-col gap-2">
                 <Label htmlFor="otp">OTP</Label>
                 <Input
