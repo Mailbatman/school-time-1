@@ -21,7 +21,7 @@ const VerifyOtpPage = () => {
     otp: Yup.string().required("OTP is required").length(6, "OTP must be 6 digits"),
     password: Yup.string().required("Password is required").min(8, "Password must be at least 8 characters"),
     confirmPassword: Yup.string()
-      .oneOf([Yup.ref('password'), null], 'Passwords must match')
+      .oneOf([Yup.ref('password')], 'Passwords must match')
       .required('Confirm Password is required'),
   });
 
