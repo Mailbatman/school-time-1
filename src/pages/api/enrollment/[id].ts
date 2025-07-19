@@ -59,10 +59,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
         // 2. Find or create the school admin user
         let authUser;
-        const { data: existingAuthUser, error: getUserError } = await supabaseAdmin.auth.admin.getUserByEmail(enrollment.contactEmail);
+        const { data: { users: existingUsers }, error: listError } = await supabaseAdmin.auth.admin.listUsers({ email: enrollment.contactEmail });
 
-        if (existingAuthUser?.user) {
-          authUser = existingAuthUser.user;
+        if (listError) {
+          throw new Error(`Failed to list users: ${listError.message}`);
+        }
+
+        if (existingUsers.length > 0) {
+          authUser = existingUsers[0];
         } else {
           const { data: newAuthUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
             email: enrollment.contactEmail,
