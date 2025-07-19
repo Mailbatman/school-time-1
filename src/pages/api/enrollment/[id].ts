@@ -57,6 +57,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           },
         });
 
+        // Create default classes for the new school
+        const defaultGrades = [
+          'Nursery', 'LKG', 'UKG',
+          'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5',
+          'Grade 6', 'Grade 7', 'Grade 8', 'Grade 9', 'Grade 10',
+          'Grade 11', 'Grade 12'
+        ];
+        const classesToCreate = defaultGrades.map(grade => ({
+          name: `${grade}-A`,
+          schoolId: school.id,
+        }));
+
+        await prisma.class.createMany({
+          data: classesToCreate,
+        });
+
         // 2. Find or create the school admin user
         let authUser;
         const { data: { users: allUsers }, error: listError } = await supabaseAdmin.auth.admin.listUsers();
