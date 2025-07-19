@@ -71,7 +71,10 @@ const EnrollPage = () => {
       const response = await fetch('/api/enrollment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(values),
+        body: JSON.stringify({
+          ...values,
+          estimatedStudents: Number(values.estimatedStudents),
+        }),
       });
 
       if (response.ok) {
