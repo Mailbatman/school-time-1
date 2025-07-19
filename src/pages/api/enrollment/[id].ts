@@ -85,7 +85,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         });
 
         // 4. Send the welcome/password setup OTP
-        const { error: otpError } = await supabaseAdmin.auth.signInWithOtp({
+        const supabasePublic = createSupabaseAdminClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+        );
+        const { error: otpError } = await supabasePublic.auth.signInWithOtp({
           email: enrollment.contactEmail,
           options: {
             shouldCreateUser: false,
