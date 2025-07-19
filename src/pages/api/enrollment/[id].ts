@@ -84,15 +84,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           },
         });
 
-        // 4. Send the welcome/password setup email
-        const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-            type: 'recovery',
-            email: enrollment.contactEmail,
+        // 4. Send the welcome/password setup OTP
+        const { error: otpError } = await supabaseAdmin.auth.signInWithOtp({
+          email: enrollment.contactEmail,
+          options: {
+            shouldCreateUser: false,
+          },
         });
 
-        if (linkError) {
-            console.error('Failed to generate password recovery link:', linkError);
-            // Continue even if email fails, as the accounts are created.
+        if (otpError) {
+          console.error('Failed to send OTP:', otpError);
+          // Continue even if email fails, as the accounts are created.
         }
       }
 

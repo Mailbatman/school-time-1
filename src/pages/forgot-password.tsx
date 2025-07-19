@@ -11,7 +11,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 const ForgotPasswordPage = () => {
   const router = useRouter();
-  const { resetPassword } = useContext(AuthContext);
+  const { sendPasswordResetOtp } = useContext(AuthContext);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
@@ -27,12 +27,13 @@ const ForgotPasswordPage = () => {
     onSubmit: async (values) => {
       setIsLoading(true);
       try {
-        await resetPassword(values.email);
+        await sendPasswordResetOtp(values.email);
         toast({
           title: "Check your email",
-          description: "If an account with that email exists, we've sent a link to reset your password.",
+          description: "If an account with that email exists, we've sent an OTP to reset your password.",
           variant: "default",
         });
+        router.push(`/verify-otp?email=${encodeURIComponent(values.email)}`);
       } catch (error: any) {
         console.error(error);
         toast({
@@ -57,7 +58,7 @@ const ForgotPasswordPage = () => {
             <form onSubmit={formik.handleSubmit}>
               <div className="flex flex-col gap-6">
                 <p className="text-center text-sm text-muted-foreground">
-                  Enter your email address and we'll send you a link to reset your password.
+                  Enter your email address and we'll send you an OTP to reset your password.
                 </p>
 
                 <div className="flex flex-col gap-2">
@@ -81,7 +82,7 @@ const ForgotPasswordPage = () => {
                   className="w-full"
                   disabled={isLoading || !formik.values.email || !formik.isValid}
                 >
-                  {isLoading ? 'Resetting...' : 'Reset Password'}
+                  {isLoading ? 'Sending OTP...' : 'Send OTP'}
                 </Button>
 
                 <div className="flex justify-center">
