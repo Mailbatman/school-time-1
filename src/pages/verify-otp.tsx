@@ -137,7 +137,7 @@ const VerifyOtpPage = () => {
               <Button
                 type="submit"
                 className="w-full"
-                disabled={isLoading || !formik.isValid}
+                disabled={isLoading || !formik.isValid || !router.isReady}
               >
                 {isLoading ? 'Resetting...' : 'Reset Password'}
               </Button>
