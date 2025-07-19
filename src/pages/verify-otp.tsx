@@ -42,7 +42,7 @@ const VerifyOtpPage = () => {
         const { error: verifyError } = await supabase.auth.verifyOtp({
           email,
           token: values.otp,
-          type: 'email_change',
+          type: 'email',
         });
 
         if (verifyError) {
