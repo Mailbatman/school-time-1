@@ -7,7 +7,7 @@ import { Toaster } from "@/components/ui/toaster"
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 
-const publicPages = ['/', '/login', '/signup', '/forgot-password', '/reset-password', '/enroll', '/unauthorized', '/error'];
+const publicPages = ['/', '/login', '/signup', '/forgot-password', '/reset-password', '/enroll', '/unauthorized', '/error', '/verify-otp'];
 
 export default function App({ Component, pageProps }: AppProps) {
   const [mounted, setMounted] = useState(false);
