@@ -101,11 +101,13 @@ const ScheduleManager = ({ classes, subjects, teachers, initialSchedules }: Sche
   }, [schedules, selectedClass]);
 
   const currentClassSubjects = useMemo(() => {
-    const classData = classes.find(c => c.id === selectedClass);
+    const classData = classes.find((c) => c.id === selectedClass);
     if (!classData) return [];
-    // This logic needs to be improved. For now, let's assume all subjects are available.
-    return subjects;
-  }, [selectedClass, classes, subjects]);
+    if (classData.subjects) {
+      return classData.subjects.map(s => s.subject);
+    }
+    return [];
+  }, [selectedClass, classes]);
 
   return (
     <Card>
