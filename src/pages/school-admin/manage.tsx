@@ -253,7 +253,6 @@ const ManagePage = ({ initialClasses, initialStudents, teachers }: ManagePagePro
               </Table>
             </CardContent>
           </Card>
-          </Card>
           <Card>
             <CardHeader>
               <CardTitle>Manage Students</CardTitle>
