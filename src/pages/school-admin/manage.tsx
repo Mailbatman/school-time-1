@@ -42,6 +42,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui/tabs';
 
 type ManagePageProps = {
   initialClasses: (Class & { teachers: DbUser[], isActive: boolean })[];
@@ -197,21 +203,27 @@ const ManagePage = ({ initialClasses, initialStudents, initialSubjects, teachers
     <ProtectedRoute roles={['SCHOOL_ADMIN']}>
       <Header />
       <main className="p-8">
-        <h1 className="text-2xl font-bold mb-4">School Management</h1>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2">
+        <h1 className="text-2xl font-bold mb-4">School Admin Dashboard</h1>
+        <Tabs defaultValue="classes">
+          <TabsList className="mb-4">
+            <TabsTrigger value="classes">Manage Classes</TabsTrigger>
+            <TabsTrigger value="subjects">Manage Subjects</TabsTrigger>
+            <TabsTrigger value="students">Manage Students</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="classes">
             <Card>
               <CardHeader>
-                <CardTitle>Manage Classes</CardTitle>
+                <CardTitle>Classes</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex gap-2 mb-4">
                   <Input
-                    placeholder="New class name"
+                    placeholder="New class name (e.g., Grade 1-A)"
                     value={newClassName}
                     onChange={(e) => setNewClassName(e.target.value)}
                   />
-                  <Button onClick={handleCreateClass}>Add Class</Button>
+                  <Button onClick={handleCreateClass}>Create Class</Button>
                 </div>
                 <Table>
                   <TableHeader>
@@ -227,7 +239,7 @@ const ManagePage = ({ initialClasses, initialStudents, initialSubjects, teachers
                       <TableRow key={c.id} className={!c.isActive ? 'text-muted-foreground' : ''}>
                         <TableCell>
                           {editingClass?.id === c.id ? (
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 items-center">
                               <Input
                                 value={renamingClassName}
                                 onChange={(e) => setRenamingClassName(e.target.value)}
@@ -275,78 +287,101 @@ const ManagePage = ({ initialClasses, initialStudents, initialSubjects, teachers
                 </Table>
               </CardContent>
             </Card>
-          </div>
-          <div>
-            <div className="space-y-8">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Manage Subjects</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex gap-2 mb-4">
-                    <Input
-                      placeholder="New subject name"
-                      value={newSubjectName}
-                      onChange={(e) => setNewSubjectName(e.target.value)}
-                    />
-                    <Button onClick={handleCreateSubject}>Add</Button>
-                  </div>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Name</TableHead>
+          </TabsContent>
+
+          <TabsContent value="subjects">
+            <Card>
+              <CardHeader>
+                <CardTitle>Subjects</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex gap-2 mb-4">
+                  <Input
+                    placeholder="New subject name"
+                    value={newSubjectName}
+                    onChange={(e) => setNewSubjectName(e.target.value)}
+                  />
+                  <Button onClick={handleCreateSubject}>Add Subject</Button>
+                </div>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {subjects.map((s) => (
+                      <TableRow key={s.id}>
+                        <TableCell>{s.name}</TableCell>
+                        <TableCell className="text-right">
+                          {/* Placeholder for future actions */}
+                        </TableCell>
                       </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {subjects.map((s) => (
-                        <TableRow key={s.id}>
-                          <TableCell>{s.name}</TableCell>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="students">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div className="md:col-span-1">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Add New Student</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      <Input placeholder="First Name" value={newStudent.firstName} onChange={(e) => setNewStudent({...newStudent, firstName: e.target.value})} />
+                      <Input placeholder="Last Name" value={newStudent.lastName} onChange={(e) => setNewStudent({...newStudent, lastName: e.target.value})} />
+                      <Input placeholder="Parent's Email" type="email" value={newStudent.parentEmail} onChange={(e) => setNewStudent({...newStudent, parentEmail: e.target.value})} />
+                      <Select onValueChange={(value) => setNewStudent({...newStudent, classId: value})} value={newStudent.classId}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a class" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {classes.filter(c => c.isActive).map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                      <Button onClick={handleCreateStudent} className="w-full">Add Student</Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+              <div className="md:col-span-2">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>All Students</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Class</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Manage Students</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2 mb-4">
-                    <Input placeholder="First Name" value={newStudent.firstName} onChange={(e) => setNewStudent({...newStudent, firstName: e.target.value})} />
-                    <Input placeholder="Last Name" value={newStudent.lastName} onChange={(e) => setNewStudent({...newStudent, lastName: e.target.value})} />
-                    <Input placeholder="Parent's Email" value={newStudent.parentEmail} onChange={(e) => setNewStudent({...newStudent, parentEmail: e.target.value})} />
-                    <Select onValueChange={(value) => setNewStudent({...newStudent, classId: value})}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a class" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {classes.filter(c => c.isActive).map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                    <Button onClick={handleCreateStudent} className="w-full">Add Student</Button>
-                  </div>
-                   <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Class</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {students.map((s) => (
-                        <TableRow key={s.id}>
-                          <TableCell>{s.firstName} {s.lastName}</TableCell>
-                          <TableCell>{s.class.name}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
+                      </TableHeader>
+                      <TableBody>
+                        {students.map((s) => (
+                          <TableRow key={s.id}>
+                            <TableCell>{s.firstName} {s.lastName}</TableCell>
+                            <TableCell>{s.class.name}</TableCell>
+                            <TableCell className="text-right">
+                              {/* Placeholder for future actions */}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
-          </div>
-        </div>
+          </TabsContent>
+        </Tabs>
       </main>
       <Toaster />
       <AlertDialog open={!!classToDeactivate} onOpenChange={(open) => !open && setClassToDeactivate(null)}>
