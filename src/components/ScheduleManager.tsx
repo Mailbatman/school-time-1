@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -6,7 +6,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -17,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Class, Subject, User as DbUser, Schedule } from '@prisma/client';
 import { toast } from '@/components/ui/use-toast';
 import FullCalendar from '@fullcalendar/react';
@@ -36,6 +36,16 @@ type ScheduleManagerProps = {
   })[];
 };
 
+const dayMapping: { [key: number]: string } = {
+  0: 'SUNDAY',
+  1: 'MONDAY',
+  2: 'TUESDAY',
+  3: 'WEDNESDAY',
+  4: 'THURSDAY',
+  5: 'FRIDAY',
+  6: 'SATURDAY',
+};
+
 const ScheduleManager = ({
   classes,
   subjects,
@@ -53,23 +63,39 @@ const ScheduleManager = ({
   const [selectedClass, setSelectedClass] = useState<string>('');
   const [selectedSubject, setSelectedSubject] = useState('');
   const [selectedTeacher, setSelectedTeacher] = useState('');
+  const [selectedDays, setSelectedDays] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (isDialogOpen) {
+      if (selectedEvent) {
+        const eventDate = selectedEvent.event.start;
+        if (eventDate) {
+          setSelectedDays([dayMapping[eventDate.getDay()]]);
+        }
+      } else if (selectedDateInfo) {
+        const startDate = new Date(selectedDateInfo.startStr);
+        setSelectedDays([dayMapping[startDate.getDay()]]);
+      }
+    }
+  }, [isDialogOpen, selectedEvent, selectedDateInfo]);
 
   const events = useMemo(() => {
-    return schedules
+    const eventInputs: EventInput[] = [];
+    schedules
       .filter((s) => !selectedClass || s.classId === selectedClass)
-      .map(
-        (s) =>
-          ({
-            id: s.id,
-            title: `${s.subject.name} - ${s.teacher.firstName}`,
-            start: `${s.dayOfWeek.toLowerCase()}T${s.startTime}`,
-            end: `${s.dayOfWeek.toLowerCase()}T${s.endTime}`,
-            classId: s.classId,
-            subjectId: s.subjectId,
-            teacherId: s.teacherId,
-            allDay: false,
-          } as EventInput)
-      );
+      .forEach((s) => {
+        eventInputs.push({
+          id: s.id,
+          title: `${s.subject.name} - ${s.teacher.firstName}`,
+          start: `${s.dayOfWeek.toLowerCase()}T${s.startTime}`,
+          end: `${s.dayOfWeek.toLowerCase()}T${s.endTime}`,
+          classId: s.classId,
+          subjectId: s.subjectId,
+          teacherId: s.teacherId,
+          allDay: false,
+        });
+      });
+    return eventInputs;
   }, [schedules, selectedClass]);
 
   const handleEventClick = useCallback((clickInfo: EventClickArg) => {
@@ -100,29 +126,23 @@ const ScheduleManager = ({
     const isNew = !selectedEvent;
     const classId = selectedClass;
 
-    if (!classId || !selectedSubject || !selectedTeacher) {
+    if (!classId || !selectedSubject || !selectedTeacher || selectedDays.length === 0) {
       toast({
         title: 'Missing Information',
-        description: 'Please select a class, subject, and teacher.',
+        description: 'Please select a class, subject, teacher, and at least one day.',
         variant: 'destructive',
       });
       return;
     }
 
-    let dayOfWeek: string, startTime: string, endTime: string;
+    let startTime: string, endTime: string;
 
     if (isNew && selectedDateInfo) {
-      const startDate = new Date(selectedDateInfo.startStr);
-      dayOfWeek = startDate.toLocaleString('en-US', { weekday: 'long' }).toUpperCase();
-      startTime = startDate.toTimeString().slice(0, 5);
-      const endDate = new Date(selectedDateInfo.endStr);
-      endTime = endDate.toTimeString().slice(0, 5);
+      startTime = new Date(selectedDateInfo.startStr).toTimeString().slice(0, 5);
+      endTime = new Date(selectedDateInfo.endStr).toTimeString().slice(0, 5);
     } else if (selectedEvent) {
-      const startDate = new Date(selectedEvent.event.startStr);
-      dayOfWeek = startDate.toLocaleString('en-US', { weekday: 'long' }).toUpperCase();
-      startTime = startDate.toTimeString().slice(0, 5);
-      const endDate = new Date(selectedEvent.event.endStr);
-      endTime = endDate.toTimeString().slice(0, 5);
+      startTime = new Date(selectedEvent.event.startStr).toTimeString().slice(0, 5);
+      endTime = new Date(selectedEvent.event.endStr).toTimeString().slice(0, 5);
     } else {
       return;
     }
@@ -130,7 +150,7 @@ const ScheduleManager = ({
     const scheduleData = {
       id: selectedEvent?.event.id,
       classId,
-      dayOfWeek,
+      daysOfWeek: selectedDays,
       startTime,
       endTime,
       subjectId: selectedSubject,
@@ -144,13 +164,13 @@ const ScheduleManager = ({
     });
 
     if (res.ok) {
-      const updatedSchedule = await res.json();
+      const updatedSchedules = await res.json();
       if (isNew) {
-        setSchedules([...schedules, updatedSchedule]);
+        setSchedules([...schedules, ...updatedSchedules]);
       } else {
         setSchedules(
           schedules.map((s) =>
-            s.id === updatedSchedule.id ? updatedSchedule : s
+            s.id === updatedSchedules.id ? updatedSchedules : s
           )
         );
       }
@@ -172,6 +192,7 @@ const ScheduleManager = ({
     setSelectedDateInfo(null);
     setSelectedSubject('');
     setSelectedTeacher('');
+    setSelectedDays([]);
   };
 
   const currentClassSubjects = useMemo(() => {
@@ -227,13 +248,31 @@ const ScheduleManager = ({
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
+              <Label className="text-right">
+                Repeat on
+              </Label>
+              <ToggleGroup
+                type="multiple"
+                value={selectedDays}
+                onValueChange={setSelectedDays}
+                className="col-span-3 flex-wrap justify-start"
+                disabled={!!selectedEvent}
+              >
+                {Object.values(dayMapping).map(day => (
+                  <ToggleGroupItem key={day} value={day} aria-label={`Toggle ${day}`}>
+                    {day.charAt(0)}
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="class" className="text-right">
                 Class
               </Label>
               <Select
                 value={selectedClass}
                 onValueChange={setSelectedClass}
-                disabled={!!selectedEvent}
+                disabled
               >
                 <SelectTrigger className="col-span-3">
                   <SelectValue placeholder="Select Class" />
