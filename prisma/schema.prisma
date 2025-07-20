@@ -21,6 +21,7 @@ model User {
   teachingClasses     Class[]   @relation("ClassTeachers") // For TEACHER role
   classSubjects       ClassSubject[] @relation("ClassTeacher") // For TEACHER role
   approvedEnrollments SchoolEnrollment[] // For SUPER_ADMIN role
+  schedules           Schedule[]
 
   @@index([role])
   @@index([schoolId])
@@ -40,6 +41,7 @@ model School {
 
   @@index([isActive])
   subjects     Subject[]
+  schedules    Schedule[]
 }
 
 model Class {
@@ -53,6 +55,7 @@ model Class {
   updatedAt     DateTime       @updatedAt
   isActive      Boolean        @default(true)
   classSubjects ClassSubject[]
+  schedules     Schedule[]
 
   @@index([schoolId])
   @@index([isActive])
@@ -125,6 +128,7 @@ model Subject {
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   classSubjects ClassSubject[]
+  schedules     Schedule[]
 
   @@unique([name, schoolId])
   @@index([schoolId])
@@ -143,4 +147,39 @@ model ClassSubject {
   @@index([classId])
   @@index([subjectId])
   @@index([teacherId])
+}
+
+model Schedule {
+  id        String    @id @default(cuid())
+  dayOfWeek DayOfWeek
+  startTime String // Store as "HH:mm"
+  endTime   String // Store as "HH:mm"
+  classId   String
+  class     Class     @relation(fields: [classId], references: [id], onDelete: Cascade)
+  subjectId String
+  subject   Subject   @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  teacherId String    @db.Uuid
+  teacher   User      @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  schoolId  String
+  school    School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([dayOfWeek, startTime, endTime, classId])
+  @@unique([dayOfWeek, startTime, endTime, teacherId])
+  @@index([classId])
+  @@index([subjectId])
+  @@index([teacherId])
+  @@index([schoolId])
+}
+
+enum DayOfWeek {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
 }

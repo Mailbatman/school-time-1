@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { GetServerSideProps } from 'next';
 import { createClient } from '@/util/supabase/server-props';
 import prisma from '@/lib/prisma';
-import { Class, Student, Subject, User as DbUser } from '@prisma/client';
+import { Class, Student, Subject, User as DbUser, Schedule } from '@prisma/client';
+import ScheduleManager from '@/components/ScheduleManager';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Header from '@/components/Header';
 import { Button } from '@/components/ui/button';
@@ -50,13 +51,14 @@ import {
 } from '@/components/ui/tabs';
 
 type ManagePageProps = {
-  initialClasses: (Class & { teachers: DbUser[], isActive: boolean })[];
+  initialClasses: (Class & { teachers: DbUser[]; isActive: boolean; subjects: { subject: Subject }[] })[];
   initialStudents: (Student & { class: Class })[];
   initialSubjects: Subject[];
   teachers: DbUser[];
+  initialSchedules: (Schedule & { class: Class; subject: Subject; teacher: DbUser })[];
 };
 
-const ManagePage = ({ initialClasses, initialStudents, initialSubjects, teachers }: ManagePageProps) => {
+const ManagePage = ({ initialClasses, initialStudents, initialSubjects, teachers, initialSchedules }: ManagePageProps) => {
   const [classes, setClasses] = useState(() => initialClasses.sort((a, b) => a.name.localeCompare(b.name)));
   const [students, setStudents] = useState(initialStudents);
   const [subjects, setSubjects] = useState(initialSubjects);
@@ -209,6 +211,7 @@ const ManagePage = ({ initialClasses, initialStudents, initialSubjects, teachers
             <TabsTrigger value="classes">Manage Classes</TabsTrigger>
             <TabsTrigger value="subjects">Manage Subjects</TabsTrigger>
             <TabsTrigger value="students">Manage Students</TabsTrigger>
+            <TabsTrigger value="schedule">Manage Schedule</TabsTrigger>
           </TabsList>
 
           <TabsContent value="classes">
@@ -381,6 +384,15 @@ const ManagePage = ({ initialClasses, initialStudents, initialSubjects, teachers
               </div>
             </div>
           </TabsContent>
+
+          <TabsContent value="schedule">
+            <ScheduleManager 
+              classes={initialClasses} 
+              subjects={initialSubjects} 
+              teachers={teachers} 
+              initialSchedules={initialSchedules} 
+            />
+          </TabsContent>
         </Tabs>
       </main>
       <Toaster />
@@ -417,19 +429,43 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
     return { redirect: { destination: '/unauthorized', permanent: false } };
   }
 
-  const [initialClasses, initialStudents, initialSubjects, teachers] = await Promise.all([
-    prisma.class.findMany({ where: { schoolId: dbUser.schoolId }, include: { teachers: true } }),
+  const [initialClasses, initialStudents, initialSubjects, teachers, initialSchedules] = await Promise.all([
+    prisma.class.findMany({ 
+      where: { schoolId: dbUser.schoolId }, 
+      include: { 
+        teachers: true,
+        classSubjects: {
+          include: {
+            subject: true
+          }
+        }
+      } 
+    }),
     prisma.student.findMany({ where: { schoolId: dbUser.schoolId }, include: { class: true } }),
     prisma.subject.findMany({ where: { schoolId: dbUser.schoolId }, orderBy: { name: 'asc' } }),
     prisma.user.findMany({ where: { schoolId: dbUser.schoolId, role: 'TEACHER' } }),
+    prisma.schedule.findMany({ 
+      where: { schoolId: dbUser.schoolId },
+      include: {
+        class: true,
+        subject: true,
+        teacher: true,
+      }
+    }),
   ]);
+
+  const transformedClasses = initialClasses.map(c => ({
+    ...c,
+    subjects: c.classSubjects.map(cs => ({ subject: cs.subject }))
+  }));
 
   return {
     props: {
-      initialClasses: JSON.parse(JSON.stringify(initialClasses)),
+      initialClasses: JSON.parse(JSON.stringify(transformedClasses)),
       initialStudents: JSON.parse(JSON.stringify(initialStudents)),
       initialSubjects: JSON.parse(JSON.stringify(initialSubjects)),
       teachers: JSON.parse(JSON.stringify(teachers)),
+      initialSchedules: JSON.parse(JSON.stringify(initialSchedules)),
     },
   };
 };
