@@ -26,7 +26,7 @@ const ScheduleManager = ({ classes, subjects, teachers, initialSchedules }: Sche
   const [periodDuration, setPeriodDuration] = useState(60); // in minutes
 
   const timeSlots = useMemo(() => {
-    const slots = [];
+    const slots: string[] = [];
     let current = new Date(`1970-01-01T${startTime}:00`);
     const end = new Date(`1970-01-01T${endTime}:00`);
 
