@@ -203,7 +203,7 @@ const ScheduleManager = ({ classes, subjects, teachers, initialSchedules }: Sche
                             >
                               <SelectTrigger>
                                 <SelectValue placeholder="Teacher" />
-                              </Trigger>
+                              </SelectTrigger>
                               <SelectContent>
                                 {teachers.map((t) => (
                                   <SelectItem key={t.id} value={t.id}>
