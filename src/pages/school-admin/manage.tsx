@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { GetServerSideProps } from 'next';
 import { createClient } from '@/util/supabase/server-props';
 import prisma from '@/lib/prisma';
-import { Class, Student, User as DbUser } from '@prisma/client';
+import { Class, Student, Subject, User as DbUser } from '@prisma/client';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Header from '@/components/Header';
 import { Button } from '@/components/ui/button';
@@ -46,14 +46,17 @@ import {
 type ManagePageProps = {
   initialClasses: (Class & { teachers: DbUser[], isActive: boolean })[];
   initialStudents: (Student & { class: Class })[];
+  initialSubjects: Subject[];
   teachers: DbUser[];
 };
 
-const ManagePage = ({ initialClasses, initialStudents, teachers }: ManagePageProps) => {
+const ManagePage = ({ initialClasses, initialStudents, initialSubjects, teachers }: ManagePageProps) => {
   const [classes, setClasses] = useState(() => initialClasses.sort((a, b) => a.name.localeCompare(b.name)));
   const [students, setStudents] = useState(initialStudents);
+  const [subjects, setSubjects] = useState(initialSubjects);
   const [newClassName, setNewClassName] = useState('');
   const [newStudent, setNewStudent] = useState({ firstName: '', lastName: '', classId: '', parentEmail: '' });
+  const [newSubjectName, setNewSubjectName] = useState('');
   const [editingClass, setEditingClass] = useState<Class | null>(null);
   const [renamingClassName, setRenamingClassName] = useState('');
   const [classToDeactivate, setClassToDeactivate] = useState<Class | null>(null);
@@ -172,124 +175,177 @@ const ManagePage = ({ initialClasses, initialStudents, teachers }: ManagePagePro
     }
   };
 
+  const handleCreateSubject = async () => {
+    if (!newSubjectName) return;
+    const res = await fetch('/api/subjects', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: newSubjectName }),
+    });
+    if (res.ok) {
+      const createdSubject = await res.json();
+      setSubjects([...subjects, createdSubject]);
+      setNewSubjectName('');
+      toast({ title: 'Subject created' });
+    } else {
+      const { error } = await res.json();
+      toast({ title: 'Error creating subject', description: error, variant: 'destructive' });
+    }
+  };
+
   return (
     <ProtectedRoute roles={['SCHOOL_ADMIN']}>
       <Header />
       <main className="p-8">
         <h1 className="text-2xl font-bold mb-4">School Management</h1>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <Card>
-            <CardHeader>
-              <CardTitle>Manage Classes</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex gap-2 mb-4">
-                <Input
-                  placeholder="New class name"
-                  value={newClassName}
-                  onChange={(e) => setNewClassName(e.target.value)}
-                />
-                <Button onClick={handleCreateClass}>Add Class</Button>
-              </div>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Teachers</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {classes.map((c) => (
-                    <TableRow key={c.id} className={!c.isActive ? 'text-muted-foreground' : ''}>
-                      <TableCell>
-                        {editingClass?.id === c.id ? (
-                          <div className="flex gap-2">
-                            <Input
-                              value={renamingClassName}
-                              onChange={(e) => setRenamingClassName(e.target.value)}
-                              className="h-8"
-                            />
-                            <Button size="sm" onClick={handleRenameClass}>Save</Button>
-                            <Button size="sm" variant="outline" onClick={() => setEditingClass(null)}>Cancel</Button>
-                          </div>
-                        ) : (
-                          c.name
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${c.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                          {c.isActive ? 'Active' : 'Inactive'}
-                        </span>
-                      </TableCell>
-                      <TableCell>{c.teachers.map(t => `${t.firstName} ${t.lastName}`).join(', ')}</TableCell>
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0">
-                              <span className="sr-only">Open menu</span>
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleAddSection(c.name)}>
-                              Add Section
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => { setEditingClass(c); setRenamingClassName(c.name); }}>
-                              Rename
-                            </DropdownMenuItem>
-                            {c.isActive && (
-                              <DropdownMenuItem onClick={() => setClassToDeactivate(c)} className="text-red-600">
-                                Deactivate
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Manage Classes</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex gap-2 mb-4">
+                  <Input
+                    placeholder="New class name"
+                    value={newClassName}
+                    onChange={(e) => setNewClassName(e.target.value)}
+                  />
+                  <Button onClick={handleCreateClass}>Add Class</Button>
+                </div>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Teachers</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {classes.map((c) => (
+                      <TableRow key={c.id} className={!c.isActive ? 'text-muted-foreground' : ''}>
+                        <TableCell>
+                          {editingClass?.id === c.id ? (
+                            <div className="flex gap-2">
+                              <Input
+                                value={renamingClassName}
+                                onChange={(e) => setRenamingClassName(e.target.value)}
+                                className="h-8"
+                              />
+                              <Button size="sm" onClick={handleRenameClass}>Save</Button>
+                              <Button size="sm" variant="outline" onClick={() => setEditingClass(null)}>Cancel</Button>
+                            </div>
+                          ) : (
+                            c.name
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${c.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                            {c.isActive ? 'Active' : 'Inactive'}
+                          </span>
+                        </TableCell>
+                        <TableCell>{c.teachers.map(t => `${t.firstName} ${t.lastName}`).join(', ')}</TableCell>
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0">
+                                <span className="sr-only">Open menu</span>
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleAddSection(c.name)}>
+                                Add Section
                               </DropdownMenuItem>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>Manage Students</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2 mb-4">
-                <Input placeholder="First Name" value={newStudent.firstName} onChange={(e) => setNewStudent({...newStudent, firstName: e.target.value})} />
-                <Input placeholder="Last Name" value={newStudent.lastName} onChange={(e) => setNewStudent({...newStudent, lastName: e.target.value})} />
-                <Input placeholder="Parent's Email" value={newStudent.parentEmail} onChange={(e) => setNewStudent({...newStudent, parentEmail: e.target.value})} />
-                <Select onValueChange={(value) => setNewStudent({...newStudent, classId: value})}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a class" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {classes.filter(c => c.isActive).map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                <Button onClick={handleCreateStudent} className="w-full">Add Student</Button>
-              </div>
-               <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Class</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {students.map((s) => (
-                    <TableRow key={s.id}>
-                      <TableCell>{s.firstName} {s.lastName}</TableCell>
-                      <TableCell>{s.class.name}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+                              <DropdownMenuItem onClick={() => { setEditingClass(c); setRenamingClassName(c.name); }}>
+                                Rename
+                              </DropdownMenuItem>
+                              {c.isActive && (
+                                <DropdownMenuItem onClick={() => setClassToDeactivate(c)} className="text-red-600">
+                                  Deactivate
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </div>
+          <div>
+            <div className="space-y-8">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Manage Subjects</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex gap-2 mb-4">
+                    <Input
+                      placeholder="New subject name"
+                      value={newSubjectName}
+                      onChange={(e) => setNewSubjectName(e.target.value)}
+                    />
+                    <Button onClick={handleCreateSubject}>Add</Button>
+                  </div>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {subjects.map((s) => (
+                        <TableRow key={s.id}>
+                          <TableCell>{s.name}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Manage Students</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2 mb-4">
+                    <Input placeholder="First Name" value={newStudent.firstName} onChange={(e) => setNewStudent({...newStudent, firstName: e.target.value})} />
+                    <Input placeholder="Last Name" value={newStudent.lastName} onChange={(e) => setNewStudent({...newStudent, lastName: e.target.value})} />
+                    <Input placeholder="Parent's Email" value={newStudent.parentEmail} onChange={(e) => setNewStudent({...newStudent, parentEmail: e.target.value})} />
+                    <Select onValueChange={(value) => setNewStudent({...newStudent, classId: value})}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a class" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {classes.filter(c => c.isActive).map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    <Button onClick={handleCreateStudent} className="w-full">Add Student</Button>
+                  </div>
+                   <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Class</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {students.map((s) => (
+                        <TableRow key={s.id}>
+                          <TableCell>{s.firstName} {s.lastName}</TableCell>
+                          <TableCell>{s.class.name}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         </div>
       </main>
       <Toaster />
@@ -326,9 +382,10 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
     return { redirect: { destination: '/unauthorized', permanent: false } };
   }
 
-  const [initialClasses, initialStudents, teachers] = await Promise.all([
+  const [initialClasses, initialStudents, initialSubjects, teachers] = await Promise.all([
     prisma.class.findMany({ where: { schoolId: dbUser.schoolId }, include: { teachers: true } }),
     prisma.student.findMany({ where: { schoolId: dbUser.schoolId }, include: { class: true } }),
+    prisma.subject.findMany({ where: { schoolId: dbUser.schoolId }, orderBy: { name: 'asc' } }),
     prisma.user.findMany({ where: { schoolId: dbUser.schoolId, role: 'TEACHER' } }),
   ]);
 
@@ -336,6 +393,7 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
     props: {
       initialClasses: JSON.parse(JSON.stringify(initialClasses)),
       initialStudents: JSON.parse(JSON.stringify(initialStudents)),
+      initialSubjects: JSON.parse(JSON.stringify(initialSubjects)),
       teachers: JSON.parse(JSON.stringify(teachers)),
     },
   };
