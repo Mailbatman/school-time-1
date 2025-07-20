@@ -11,6 +11,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Toaster } from '@/components/ui/toaster';
 import { toast } from '@/components/ui/use-toast';
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { MoreHorizontal } from 'lucide-react';
+import {
   Table,
   TableBody,
   TableCell,
@@ -25,9 +32,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 type ManagePageProps = {
-  initialClasses: (Class & { teachers: DbUser[] })[];
+  initialClasses: (Class & { teachers: DbUser[], isActive: boolean })[];
   initialStudents: (Student & { class: Class })[];
   teachers: DbUser[];
 };
@@ -37,6 +54,9 @@ const ManagePage = ({ initialClasses, initialStudents, teachers }: ManagePagePro
   const [students, setStudents] = useState(initialStudents);
   const [newClassName, setNewClassName] = useState('');
   const [newStudent, setNewStudent] = useState({ firstName: '', lastName: '', classId: '', parentEmail: '' });
+  const [editingClass, setEditingClass] = useState<Class | null>(null);
+  const [renamingClassName, setRenamingClassName] = useState('');
+  const [classToDeactivate, setClassToDeactivate] = useState<Class | null>(null);
 
   const handleAddSection = async (baseClassName: string) => {
     const parts = baseClassName.split('-');
@@ -78,6 +98,44 @@ const ManagePage = ({ initialClasses, initialStudents, teachers }: ManagePagePro
     } else {
       toast({ title: 'Error creating section', variant: 'destructive' });
     }
+  };
+
+  const handleRenameClass = async () => {
+    if (!editingClass || !renamingClassName) return;
+
+    const res = await fetch(`/api/classes/${editingClass.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: renamingClassName }),
+    });
+
+    if (res.ok) {
+      const updatedClass = await res.json();
+      setClasses(classes.map(c => c.id === updatedClass.id ? { ...c, name: updatedClass.name } : c).sort((a, b) => a.name.localeCompare(b.name)));
+      toast({ title: 'Class renamed' });
+    } else {
+      toast({ title: 'Error renaming class', variant: 'destructive' });
+    }
+    setEditingClass(null);
+    setRenamingClassName('');
+  };
+
+  const handleDeactivateClass = async () => {
+    if (!classToDeactivate) return;
+
+    const res = await fetch(`/api/classes/${classToDeactivate.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ isActive: false }),
+    });
+
+    if (res.ok) {
+      setClasses(classes.map(c => c.id === classToDeactivate.id ? { ...c, isActive: false } : c));
+      toast({ title: 'Class deactivated' });
+    } else {
+      toast({ title: 'Error deactivating class', variant: 'destructive' });
+    }
+    setClassToDeactivate(null);
   };
 
   const handleCreateClass = async () => {
@@ -137,25 +195,64 @@ const ManagePage = ({ initialClasses, initialStudents, teachers }: ManagePagePro
                 <TableHeader>
                   <TableRow>
                     <TableHead>Name</TableHead>
+                    <TableHead>Status</TableHead>
                     <TableHead>Teachers</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {classes.map((c) => (
-                    <TableRow key={c.id}>
-                      <TableCell>{c.name}</TableCell>
+                    <TableRow key={c.id} className={!c.isActive ? 'text-muted-foreground' : ''}>
+                      <TableCell>
+                        {editingClass?.id === c.id ? (
+                          <div className="flex gap-2">
+                            <Input
+                              value={renamingClassName}
+                              onChange={(e) => setRenamingClassName(e.target.value)}
+                              className="h-8"
+                            />
+                            <Button size="sm" onClick={handleRenameClass}>Save</Button>
+                            <Button size="sm" variant="outline" onClick={() => setEditingClass(null)}>Cancel</Button>
+                          </div>
+                        ) : (
+                          c.name
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${c.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                          {c.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                      </TableCell>
                       <TableCell>{c.teachers.map(t => `${t.firstName} ${t.lastName}`).join(', ')}</TableCell>
                       <TableCell className="text-right">
-                        <Button variant="outline" size="sm" onClick={() => handleAddSection(c.name)}>
-                          Add Section
-                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                              <span className="sr-only">Open menu</span>
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleAddSection(c.name)}>
+                              Add Section
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => { setEditingClass(c); setRenamingClassName(c.name); }}>
+                              Rename
+                            </DropdownMenuItem>
+                            {c.isActive && (
+                              <DropdownMenuItem onClick={() => setClassToDeactivate(c)} className="text-red-600">
+                                Deactivate
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
             </CardContent>
+          </Card>
           </Card>
           <Card>
             <CardHeader>
@@ -171,7 +268,7 @@ const ManagePage = ({ initialClasses, initialStudents, teachers }: ManagePagePro
                     <SelectValue placeholder="Select a class" />
                   </SelectTrigger>
                   <SelectContent>
-                    {classes.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                    {classes.filter(c => c.isActive).map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
                 <Button onClick={handleCreateStudent} className="w-full">Add Student</Button>
@@ -197,6 +294,21 @@ const ManagePage = ({ initialClasses, initialStudents, teachers }: ManagePagePro
         </div>
       </main>
       <Toaster />
+      <AlertDialog open={!!classToDeactivate} onOpenChange={(open) => !open && setClassToDeactivate(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Deactivating this class will prevent new students from being added.
+              This action can be undone later.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeactivateClass}>Deactivate</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </ProtectedRoute>
   );
 };
