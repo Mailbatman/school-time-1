@@ -49,8 +49,10 @@ model Class {
   teachers  User[]    @relation("ClassTeachers")
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
+  isActive  Boolean   @default(true)
 
   @@index([schoolId])
+  @@index([isActive])
 }
 
 model Student {
