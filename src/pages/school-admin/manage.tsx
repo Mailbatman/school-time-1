@@ -33,10 +33,52 @@ type ManagePageProps = {
 };
 
 const ManagePage = ({ initialClasses, initialStudents, teachers }: ManagePageProps) => {
-  const [classes, setClasses] = useState(initialClasses);
+  const [classes, setClasses] = useState(() => initialClasses.sort((a, b) => a.name.localeCompare(b.name)));
   const [students, setStudents] = useState(initialStudents);
   const [newClassName, setNewClassName] = useState('');
   const [newStudent, setNewStudent] = useState({ firstName: '', lastName: '', classId: '', parentEmail: '' });
+
+  const handleAddSection = async (baseClassName: string) => {
+    const parts = baseClassName.split('-');
+    if (parts.length < 2) {
+      toast({ title: 'Cannot add section', description: 'Class name is not in a Grade-Section format.', variant: 'destructive' });
+      return;
+    }
+
+    const grade = parts.slice(0, -1).join('-');
+    
+    const gradeClasses = classes
+      .map(c => c.name)
+      .filter(name => name.startsWith(grade + '-'));
+
+    const lastSection = gradeClasses
+      .map(name => name.split('-').pop()!)
+      .filter(section => section.length === 1 && section >= 'A' && section <= 'Z')
+      .sort()
+      .pop();
+
+    if (!lastSection) {
+      toast({ title: 'Cannot add section', description: 'Could not determine the next section.', variant: 'destructive' });
+      return;
+    }
+
+    const nextSection = String.fromCharCode(lastSection.charCodeAt(0) + 1);
+    const newClassName = `${grade}-${nextSection}`;
+
+    const res = await fetch('/api/classes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: newClassName }),
+    });
+
+    if (res.ok) {
+      const createdClass = await res.json();
+      setClasses(prevClasses => [...prevClasses, { ...createdClass, teachers: [] }].sort((a, b) => a.name.localeCompare(b.name)));
+      toast({ title: 'Section created', description: `Successfully created ${newClassName}.` });
+    } else {
+      toast({ title: 'Error creating section', variant: 'destructive' });
+    }
+  };
 
   const handleCreateClass = async () => {
     const res = await fetch('/api/classes', {
@@ -46,7 +88,7 @@ const ManagePage = ({ initialClasses, initialStudents, teachers }: ManagePagePro
     });
     if (res.ok) {
       const createdClass = await res.json();
-      setClasses([...classes, { ...createdClass, teachers: [] }]);
+      setClasses(prevClasses => [...prevClasses, { ...createdClass, teachers: [] }].sort((a, b) => a.name.localeCompare(b.name)));
       setNewClassName('');
       toast({ title: 'Class created' });
     } else {
@@ -96,6 +138,7 @@ const ManagePage = ({ initialClasses, initialStudents, teachers }: ManagePagePro
                   <TableRow>
                     <TableHead>Name</TableHead>
                     <TableHead>Teachers</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -103,6 +146,11 @@ const ManagePage = ({ initialClasses, initialStudents, teachers }: ManagePagePro
                     <TableRow key={c.id}>
                       <TableCell>{c.name}</TableCell>
                       <TableCell>{c.teachers.map(t => `${t.firstName} ${t.lastName}`).join(', ')}</TableCell>
+                      <TableCell className="text-right">
+                        <Button variant="outline" size="sm" onClick={() => handleAddSection(c.name)}>
+                          Add Section
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
