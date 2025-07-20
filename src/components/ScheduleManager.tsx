@@ -3,6 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Class, Subject, User as DbUser, Schedule } from '@prisma/client';
 import { toast } from '@/components/ui/use-toast';
@@ -15,18 +17,27 @@ type ScheduleManagerProps = {
 };
 
 const daysOfWeek = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
-const timeSlots = [
-  '09:00-10:00',
-  '10:00-11:00',
-  '11:00-12:00',
-  '12:00-13:00',
-  '14:00-15:00',
-  '15:00-16:00',
-];
 
 const ScheduleManager = ({ classes, subjects, teachers, initialSchedules }: ScheduleManagerProps) => {
   const [schedules, setSchedules] = useState(initialSchedules);
   const [selectedClass, setSelectedClass] = useState<string>('');
+  const [startTime, setStartTime] = useState('09:00');
+  const [endTime, setEndTime] = useState('16:00');
+  const [periodDuration, setPeriodDuration] = useState(60); // in minutes
+
+  const timeSlots = useMemo(() => {
+    const slots = [];
+    let current = new Date(`1970-01-01T${startTime}:00`);
+    const end = new Date(`1970-01-01T${endTime}:00`);
+
+    while (current < end) {
+      const slotStart = current.toTimeString().slice(0, 5);
+      current.setMinutes(current.getMinutes() + periodDuration);
+      const slotEnd = current.toTimeString().slice(0, 5);
+      slots.push(`${slotStart}-${slotEnd}`);
+    }
+    return slots;
+  }, [startTime, endTime, periodDuration]);
 
   const handleScheduleChange = async (
     day: string,
@@ -98,8 +109,38 @@ const ScheduleManager = ({ classes, subjects, teachers, initialSchedules }: Sche
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Manage Schedule</CardTitle>
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button variant="outline">Schedule Settings</Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Schedule Settings</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="start-time" className="text-right">
+                  Start Time
+                </Label>
+                <Input id="start-time" type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className="col-span-3" />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="end-time" className="text-right">
+                  End Time
+                </Label>
+                <Input id="end-time" type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className="col-span-3" />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="duration" className="text-right">
+                  Period Duration (min)
+                </Label>
+                <Input id="duration" type="number" value={periodDuration} onChange={e => setPeriodDuration(parseInt(e.target.value))} className="col-span-3" />
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </CardHeader>
       <CardContent>
         <div className="mb-4">
@@ -118,20 +159,20 @@ const ScheduleManager = ({ classes, subjects, teachers, initialSchedules }: Sche
         </div>
 
         {selectedClass && (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto rounded-lg border">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Time</TableHead>
+                  <TableHead className="w-[120px]">Time</TableHead>
                   {daysOfWeek.map((day) => (
-                    <TableHead key={day}>{day}</TableHead>
+                    <TableHead key={day} className="min-w-[200px]">{day}</TableHead>
                   ))}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {timeSlots.map((time) => (
                   <TableRow key={time}>
-                    <TableCell>{time}</TableCell>
+                    <TableCell className="font-medium">{time}</TableCell>
                     {daysOfWeek.map((day) => {
                       const schedule = scheduleGrid[day]?.[time];
                       return (
@@ -162,7 +203,7 @@ const ScheduleManager = ({ classes, subjects, teachers, initialSchedules }: Sche
                             >
                               <SelectTrigger>
                                 <SelectValue placeholder="Teacher" />
-                              </SelectTrigger>
+                              </Trigger>
                               <SelectContent>
                                 {teachers.map((t) => (
                                   <SelectItem key={t.id} value={t.id}>
