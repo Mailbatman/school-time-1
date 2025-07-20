@@ -19,6 +19,7 @@ model User {
   school          School?  @relation(fields: [schoolId], references: [id])
   students            Student[] // For PARENT_STUDENT role
   teachingClasses     Class[]   @relation("ClassTeachers") // For TEACHER role
+  classSubjects       ClassSubject[] @relation("ClassTeacher") // For TEACHER role
   approvedEnrollments SchoolEnrollment[] // For SUPER_ADMIN role
 
   @@index([role])
@@ -134,9 +135,9 @@ model ClassSubject {
   classId   String
   class     Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
   subjectId String
-  subject   Subject  @relation(fields: [subjectId], references: [id], onDelete:Cascade)
+  subject   Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
   teacherId String?  @db.Uuid
-  teacher   User?    @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  teacher   User?    @relation("ClassTeacher", fields: [teacherId], references: [id], onDelete: SetNull)
 
   @@unique([classId, subjectId])
   @@index([classId])
