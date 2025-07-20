@@ -38,18 +38,20 @@ model School {
   enrollment   SchoolEnrollment? @relation(fields: [enrollmentId], references: [id])
 
   @@index([isActive])
+  subjects     Subject[]
 }
 
 model Class {
-  id        String    @id @default(cuid())
-  name      String
-  schoolId  String
-  school    School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  students  Student[]
-  teachers  User[]    @relation("ClassTeachers")
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  isActive  Boolean   @default(true)
+  id            String         @id @default(cuid())
+  name          String
+  schoolId      String
+  school        School         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  students      Student[]
+  teachers      User[]         @relation("ClassTeachers")
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  isActive      Boolean        @default(true)
+  classSubjects ClassSubject[]
 
   @@index([schoolId])
   @@index([isActive])
@@ -112,4 +114,32 @@ enum EnrollmentStatus {
   PENDING
   APPROVED
   REJECTED
+}
+
+model Subject {
+  id            String         @id @default(cuid())
+  name          String
+  schoolId      String
+  school        School         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  classSubjects ClassSubject[]
+
+  @@unique([name, schoolId])
+  @@index([schoolId])
+}
+
+model ClassSubject {
+  id        String   @id @default(cuid())
+  classId   String
+  class     Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  subjectId String
+  subject   Subject  @relation(fields: [subjectId], references: [id], onDelete:Cascade)
+  teacherId String?  @db.Uuid
+  teacher   User?    @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+
+  @@unique([classId, subjectId])
+  @@index([classId])
+  @@index([subjectId])
+  @@index([teacherId])
 }
