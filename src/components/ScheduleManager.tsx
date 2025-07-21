@@ -195,11 +195,9 @@ const ScheduleManager = ({
     setSelectedDays([]);
   };
 
-  const currentClassSubjects = useMemo(() => {
-    const classData = classes.find((c) => c.id === selectedClass);
-    if (!classData) return [];
-    return classData.subjects.map((s) => s.subject);
-  }, [selectedClass, classes]);
+  const availableSubjects = useMemo(() => {
+    return subjects;
+  }, [subjects]);
 
   return (
     <Card>
@@ -295,7 +293,7 @@ const ScheduleManager = ({
                   <SelectValue placeholder="Select Subject" />
                 </SelectTrigger>
                 <SelectContent>
-                  {currentClassSubjects.map((s) => (
+                  {availableSubjects.map((s) => (
                     <SelectItem key={s.id} value={s.id}>
                       {s.name}
                     </SelectItem>
