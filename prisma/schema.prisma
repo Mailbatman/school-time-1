@@ -151,9 +151,10 @@ model ClassSubject {
 
 model Schedule {
   id        String    @id @default(cuid())
-  dayOfWeek DayOfWeek
-  startTime String // Store as "HH:mm"
-  endTime   String // Store as "HH:mm"
+  startDate DateTime
+  endDate   DateTime
+  isAllDay  Boolean   @default(false)
+  rrule     String?   // To store recurrence rules
   classId   String
   class     Class     @relation(fields: [classId], references: [id], onDelete: Cascade)
   subjectId String
@@ -166,20 +167,10 @@ model Schedule {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([dayOfWeek, startTime, endTime, classId])
-  @@unique([dayOfWeek, startTime, endTime, teacherId])
   @@index([classId])
   @@index([subjectId])
   @@index([teacherId])
   @@index([schoolId])
-}
-
-enum DayOfWeek {
-  MONDAY
-  TUESDAY
-  WEDNESDAY
-  THURSDAY
-  FRIDAY
-  SATURDAY
-  SUNDAY
+  @@index([startDate])
+  @@index([endDate])
 }

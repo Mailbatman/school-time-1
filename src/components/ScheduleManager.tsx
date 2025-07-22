@@ -16,7 +16,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 import { Class, Subject, User as DbUser, Schedule } from '@prisma/client';
 import { toast } from '@/components/ui/use-toast';
 import FullCalendar from '@fullcalendar/react';
@@ -24,6 +25,7 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import { EventInput, EventClickArg, DateSelectArg } from '@fullcalendar/core';
+import { RRule } from 'rrule';
 
 type ScheduleManagerProps = {
   classes: (Class & { subjects: { subject: Subject }[] })[];
@@ -36,16 +38,6 @@ type ScheduleManagerProps = {
   })[];
 };
 
-const dayMapping: { [key: number]: string } = {
-  0: 'SUNDAY',
-  1: 'MONDAY',
-  2: 'TUESDAY',
-  3: 'WEDNESDAY',
-  4: 'THURSDAY',
-  5: 'FRIDAY',
-  6: 'SATURDAY',
-};
-
 const ScheduleManager = ({
   classes,
   subjects,
@@ -54,55 +46,53 @@ const ScheduleManager = ({
 }: ScheduleManagerProps) => {
   const [schedules, setSchedules] = useState(initialSchedules);
   const [isDialogOpen, setDialogOpen] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState<EventClickArg | null>(
-    null
-  );
-  const [selectedDateInfo, setSelectedDateInfo] = useState<DateSelectArg | null>(
-    null
-  );
+  const [selectedEvent, setSelectedEvent] = useState<EventClickArg | null>(null);
+  const [selectedDateInfo, setSelectedDateInfo] = useState<DateSelectArg | null>(null);
   const [selectedClass, setSelectedClass] = useState<string>('');
   const [selectedSubject, setSelectedSubject] = useState('');
   const [selectedTeacher, setSelectedTeacher] = useState('');
-  const [selectedDays, setSelectedDays] = useState<string[]>([]);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [isAllDay, setIsAllDay] = useState(false);
+  const [recurrence, setRecurrence] = useState('none');
 
   useEffect(() => {
     if (isDialogOpen) {
       if (selectedEvent) {
-        const eventDate = selectedEvent.event.start;
-        if (eventDate) {
-          setSelectedDays([dayMapping[eventDate.getDay()]]);
-        }
+        const { start, end, allDay, extendedProps } = selectedEvent.event;
+        setStartDate(start?.toISOString().slice(0, 16) || '');
+        setEndDate(end?.toISOString().slice(0, 16) || '');
+        setIsAllDay(allDay);
+        setSelectedClass(extendedProps.classId);
+        setSelectedSubject(extendedProps.subjectId);
+        setSelectedTeacher(extendedProps.teacherId);
+        setRecurrence(extendedProps.rrule ? 'weekly' : 'none');
       } else if (selectedDateInfo) {
-        const startDate = new Date(selectedDateInfo.startStr);
-        setSelectedDays([dayMapping[startDate.getDay()]]);
+        setStartDate(selectedDateInfo.startStr.slice(0, 16));
+        setEndDate(selectedDateInfo.endStr.slice(0, 16));
+        setIsAllDay(selectedDateInfo.allDay);
       }
     }
   }, [isDialogOpen, selectedEvent, selectedDateInfo]);
 
   const events = useMemo(() => {
-    const eventInputs: EventInput[] = [];
-    schedules
+    return schedules
       .filter((s) => !selectedClass || s.classId === selectedClass)
-      .forEach((s) => {
-        eventInputs.push({
-          id: s.id,
-          title: `${s.subject.name} - ${s.teacher.firstName}`,
-          start: `${s.dayOfWeek.toLowerCase()}T${s.startTime}`,
-          end: `${s.dayOfWeek.toLowerCase()}T${s.endTime}`,
-          classId: s.classId,
-          subjectId: s.subjectId,
-          teacherId: s.teacherId,
-          allDay: false,
-        });
-      });
-    return eventInputs;
+      .map((s) => ({
+        id: s.id,
+        title: `${s.subject.name} - ${s.teacher.firstName}`,
+        start: s.startDate,
+        end: s.endDate,
+        allDay: s.isAllDay,
+        rrule: s.rrule ?? undefined,
+        classId: s.classId,
+        subjectId: s.subjectId,
+        teacherId: s.teacherId,
+      }));
   }, [schedules, selectedClass]);
 
   const handleEventClick = useCallback((clickInfo: EventClickArg) => {
     setSelectedEvent(clickInfo);
-    setSelectedSubject(clickInfo.event.extendedProps.subjectId);
-    setSelectedTeacher(clickInfo.event.extendedProps.teacherId);
-    setSelectedClass(clickInfo.event.extendedProps.classId);
     setDialogOpen(true);
   }, []);
 
@@ -117,72 +107,57 @@ const ScheduleManager = ({
       return;
     }
     setSelectedDateInfo(selectInfo);
-    setSelectedSubject('');
-    setSelectedTeacher('');
     setDialogOpen(true);
   }, [selectedClass]);
 
   const handleDialogSave = async () => {
-    const isNew = !selectedEvent;
-    const classId = selectedClass;
-
-    if (!classId || !selectedSubject || !selectedTeacher || selectedDays.length === 0) {
+    if (!selectedClass || !selectedSubject || !selectedTeacher) {
       toast({
         title: 'Missing Information',
-        description: 'Please select a class, subject, teacher, and at least one day.',
+        description: 'Please select a class, subject, and teacher.',
         variant: 'destructive',
       });
       return;
     }
 
-    let startTime: string, endTime: string;
-
-    if (isNew && selectedDateInfo) {
-      startTime = new Date(selectedDateInfo.startStr).toTimeString().slice(0, 5);
-      endTime = new Date(selectedDateInfo.endStr).toTimeString().slice(0, 5);
-    } else if (selectedEvent) {
-      startTime = new Date(selectedEvent.event.startStr).toTimeString().slice(0, 5);
-      endTime = new Date(selectedEvent.event.endStr).toTimeString().slice(0, 5);
-    } else {
-      return;
+    let rruleString: string | undefined;
+    if (recurrence !== 'none') {
+      const rule = new RRule({
+        freq: RRule.WEEKLY,
+        dtstart: new Date(startDate),
+      });
+      rruleString = rule.toString();
     }
 
     const scheduleData = {
       id: selectedEvent?.event.id,
-      classId,
-      daysOfWeek: selectedDays,
-      startTime,
-      endTime,
+      classId: selectedClass,
       subjectId: selectedSubject,
       teacherId: selectedTeacher,
+      startDate,
+      endDate,
+      isAllDay,
+      rrule: rruleString,
     };
 
     const res = await fetch('/api/schedules', {
-      method: isNew ? 'POST' : 'PUT',
+      method: selectedEvent ? 'PUT' : 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(scheduleData),
     });
 
     if (res.ok) {
-      const updatedSchedules = await res.json();
-      if (isNew) {
-        setSchedules([...schedules, ...updatedSchedules]);
+      const updatedSchedule = await res.json();
+      if (selectedEvent) {
+        setSchedules(schedules.map((s) => (s.id === updatedSchedule.id ? updatedSchedule : s)));
       } else {
-        setSchedules(
-          schedules.map((s) =>
-            s.id === updatedSchedules.id ? updatedSchedules : s
-          )
-        );
+        setSchedules([...schedules, updatedSchedule]);
       }
       toast({ title: 'Schedule saved successfully' });
       closeDialog();
     } else {
       const { error } = await res.json();
-      toast({
-        title: 'Failed to save schedule',
-        description: error,
-        variant: 'destructive',
-      });
+      toast({ title: 'Failed to save schedule', description: error, variant: 'destructive' });
     }
   };
 
@@ -192,12 +167,8 @@ const ScheduleManager = ({
     setSelectedDateInfo(null);
     setSelectedSubject('');
     setSelectedTeacher('');
-    setSelectedDays([]);
+    setRecurrence('none');
   };
-
-  const availableSubjects = useMemo(() => {
-    return subjects;
-  }, [subjects]);
 
   return (
     <Card>
@@ -224,7 +195,7 @@ const ScheduleManager = ({
           headerToolbar={{
             left: 'prev,next today',
             center: 'title',
-            right: 'timeGridWeek,timeGridDay',
+            right: 'timeGridWeek,timeGridDay,dayGridMonth',
           }}
           initialView="timeGridWeek"
           events={events}
@@ -240,89 +211,63 @@ const ScheduleManager = ({
       <Dialog open={isDialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>
-              {selectedEvent ? 'Edit Schedule' : 'Create Schedule'}
-            </DialogTitle>
+            <DialogTitle>{selectedEvent ? 'Edit Schedule' : 'Create Schedule'}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right">
-                Repeat on
-              </Label>
-              <ToggleGroup
-                type="multiple"
-                value={selectedDays}
-                onValueChange={setSelectedDays}
-                className="col-span-3 flex-wrap justify-start"
-                disabled={!!selectedEvent}
-              >
-                {Object.values(dayMapping).map(day => (
-                  <ToggleGroupItem key={day} value={day} aria-label={`Toggle ${day}`}>
-                    {day.charAt(0)}
-                  </ToggleGroupItem>
-                ))}
-              </ToggleGroup>
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="class" className="text-right">
-                Class
-              </Label>
-              <Select
-                value={selectedClass}
-                onValueChange={setSelectedClass}
-                disabled
-              >
-                <SelectTrigger className="col-span-3">
-                  <SelectValue placeholder="Select Class" />
-                </SelectTrigger>
+              <Label htmlFor="class" className="text-right">Class</Label>
+              <Select value={selectedClass} onValueChange={setSelectedClass} disabled>
+                <SelectTrigger className="col-span-3"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {classes.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
+                  {classes.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="subject" className="text-right">
-                Subject
-              </Label>
+              <Label htmlFor="subject" className="text-right">Subject</Label>
               <Select value={selectedSubject} onValueChange={setSelectedSubject}>
-                <SelectTrigger className="col-span-3">
-                  <SelectValue placeholder="Select Subject" />
-                </SelectTrigger>
+                <SelectTrigger className="col-span-3"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {availableSubjects.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      {s.name}
-                    </SelectItem>
-                  ))}
+                  {subjects.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="teacher" className="text-right">
-                Teacher
-              </Label>
+              <Label htmlFor="teacher" className="text-right">Teacher</Label>
               <Select value={selectedTeacher} onValueChange={setSelectedTeacher}>
+                <SelectTrigger className="col-span-3"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {teachers.map((t) => <SelectItem key={t.id} value={t.id}>{t.firstName} {t.lastName}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="start-date" className="text-right">Start Time</Label>
+              <Input id="start-date" type="datetime-local" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="col-span-3" />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="end-date" className="text-right">End Time</Label>
+              <Input id="end-date" type="datetime-local" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="col-span-3" />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="all-day" className="text-right">All-day</Label>
+              <Switch id="all-day" checked={isAllDay} onCheckedChange={setIsAllDay} />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="recurrence" className="text-right">Repeat</Label>
+              <Select value={recurrence} onValueChange={setRecurrence}>
                 <SelectTrigger className="col-span-3">
-                  <SelectValue placeholder="Select Teacher" />
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {teachers.map((t) => (
-                    <SelectItem key={t.id} value={t.id}>
-                      {t.firstName} {t.lastName}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="none">Does not repeat</SelectItem>
+                  <SelectItem value="weekly">Weekly</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={closeDialog}>
-              Cancel
-            </Button>
+            <Button variant="outline" onClick={closeDialog}>Cancel</Button>
             <Button onClick={handleDialogSave}>Save</Button>
           </DialogFooter>
         </DialogContent>
