@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { GetServerSideProps } from 'next';
 import { createClient } from '@/util/supabase/server-props';
 import prisma from '@/lib/prisma';
-import { Class, Student, Subject, User as DbUser, Schedule } from '@prisma/client';
+import { Class, Student, Subject, User as DbUser, Schedule, Role } from '@prisma/client';
 import ScheduleManager from '@/components/ScheduleManager';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Header from '@/components/Header';
@@ -460,7 +460,7 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
       firstName: 'Dummy',
       lastName: 'Teacher',
       email: 'dummy@teacher.com',
-      role: 'TEACHER',
+      role: Role.TEACHER,
       schoolId: dbUser.schoolId,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -469,7 +469,7 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
       phone: null,
       profileImage: null,
     };
-    teachers.push(dummyTeacher);
+    teachers.push(dummyTeacher as any);
   }
 
   const transformedClasses = initialClasses.map(c => ({
