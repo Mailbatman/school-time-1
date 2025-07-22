@@ -225,8 +225,8 @@ const ScheduleManager = ({
       classId: selectedClass,
       subjectId: selectedSubject,
       teacherId: selectedTeacher,
-      startDate,
-      endDate,
+      startDate: new Date(startDate).toISOString(),
+      endDate: new Date(endDate).toISOString(),
       isAllDay,
       rrule: rruleString,
     };
@@ -238,17 +238,34 @@ const ScheduleManager = ({
     });
 
     if (res.ok) {
-      const updatedSchedule = await res.json();
+      const savedSchedule = await res.json();
+      
+      // We need to manually construct the full schedule object for the state
+      // because the API only returns the raw schedule, not the relations.
+      const findTeacher = (id: string) => teachers.find(t => t.id === id);
+      const findSubject = (id: string) => subjects.find(s => s.id === id);
+      const findClass = (id: string) => classes.find(c => c.id === id);
+
+      const fullSchedule = {
+        ...savedSchedule,
+        teacher: findTeacher(savedSchedule.teacherId)!,
+        subject: findSubject(savedSchedule.subjectId)!,
+        class: findClass(savedSchedule.classId)!,
+      };
+
       if (selectedEvent) {
-        setSchedules(schedules.map((s) => (s.id === updatedSchedule.id ? updatedSchedule : s)));
+        setSchedules(schedules.map((s) => (s.id === fullSchedule.id ? fullSchedule : s)));
       } else {
-        setSchedules([...schedules, updatedSchedule]);
+        setSchedules([...schedules, fullSchedule]);
       }
       toast({ title: 'Schedule saved successfully' });
       closeDialog();
     } else {
-      const { error } = await res.json();
-      toast({ title: 'Failed to save schedule', description: error, variant: 'destructive' });
+      const result = await res.json();
+      const error = result.error || 'An unknown error occurred';
+      // The error might be an array of issues from Zod
+      const description = Array.isArray(error) ? error.map(e => `${e.path.join('.')}: ${e.message}`).join(', ') : error;
+      toast({ title: 'Failed to save schedule', description, variant: 'destructive' });
     }
   };
 
