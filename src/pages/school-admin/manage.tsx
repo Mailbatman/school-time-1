@@ -429,22 +429,22 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
     return { redirect: { destination: '/unauthorized', permanent: false } };
   }
 
-  const [initialClasses, initialStudents, initialSubjects, teachers, initialSchedules] = await Promise.all([
-    prisma.class.findMany({ 
-      where: { schoolId: dbUser.schoolId }, 
-      include: { 
+  let [initialClasses, initialStudents, initialSubjects, teachers, initialSchedules] = await Promise.all([
+    prisma.class.findMany({
+      where: { schoolId: dbUser.schoolId },
+      include: {
         teachers: true,
         classSubjects: {
           include: {
             subject: true
           }
         }
-      } 
+      }
     }),
     prisma.student.findMany({ where: { schoolId: dbUser.schoolId }, include: { class: true } }),
     prisma.subject.findMany({ where: { schoolId: dbUser.schoolId }, orderBy: { name: 'asc' } }),
     prisma.user.findMany({ where: { schoolId: dbUser.schoolId, role: 'TEACHER' } }),
-    prisma.schedule.findMany({ 
+    prisma.schedule.findMany({
       where: { schoolId: dbUser.schoolId },
       include: {
         class: true,
@@ -453,6 +453,24 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
       }
     }),
   ]);
+
+  if (teachers.length === 0) {
+    const dummyTeacher = {
+      id: 'dummy-teacher-id',
+      firstName: 'Dummy',
+      lastName: 'Teacher',
+      email: 'dummy@teacher.com',
+      role: 'TEACHER',
+      schoolId: dbUser.schoolId,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      onboarded: true,
+      isActive: true,
+      phone: null,
+      profileImage: null,
+    };
+    teachers.push(dummyTeacher);
+  }
 
   const transformedClasses = initialClasses.map(c => ({
     ...c,
