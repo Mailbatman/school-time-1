@@ -455,21 +455,28 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
   ]);
 
   if (teachers.length === 0) {
-    const dummyTeacher = {
-      id: 'dummy-teacher-id',
-      firstName: 'Dummy',
-      lastName: 'Teacher',
-      email: 'dummy@teacher.com',
-      role: Role.TEACHER,
-      schoolId: dbUser.schoolId,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      onboarded: true,
-      isActive: true,
-      phone: null,
-      profileImage: null,
-    };
-    teachers.push(dummyTeacher as any);
+    const schoolId = dbUser.schoolId!;
+    const dummyTeacherEmail = `dummy.teacher@${schoolId}.local`;
+    let dummyTeacher = await prisma.user.findUnique({
+      where: { email: dummyTeacherEmail },
+    });
+
+    if (!dummyTeacher) {
+      dummyTeacher = await prisma.user.create({
+        data: {
+          email: dummyTeacherEmail,
+          firstName: 'Dummy',
+          lastName: 'Teacher',
+          role: 'TEACHER',
+          schoolId: schoolId,
+          onboarded: true,
+          isActive: false, // Keep it inactive to avoid showing up in real teacher lists
+          phone: null,
+          profileImage: null,
+        },
+      });
+    }
+    teachers.push(dummyTeacher);
   }
 
   const transformedClasses = initialClasses.map(c => ({
