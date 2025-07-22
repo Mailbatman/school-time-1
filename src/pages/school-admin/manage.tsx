@@ -462,17 +462,25 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
     });
 
     if (!dummyTeacher) {
+      const { data: { user: authUser }, error } = await supabase.auth.admin.createUser({
+        email: dummyTeacherEmail,
+        email_confirm: true, // Automatically confirm the email
+      });
+
+      if (error || !authUser) {
+        console.error("Error creating dummy auth user:", error);
+        // Handle error appropriately
+        return { props: { error: "Could not create dummy teacher." } };
+      }
+
       dummyTeacher = await prisma.user.create({
         data: {
+          id: authUser.id,
           email: dummyTeacherEmail,
           firstName: 'Dummy',
           lastName: 'Teacher',
           role: 'TEACHER',
           schoolId: schoolId,
-          onboarded: true,
-          isActive: false, // Keep it inactive to avoid showing up in real teacher lists
-          phone: null,
-          profileImage: null,
         },
       });
     }
