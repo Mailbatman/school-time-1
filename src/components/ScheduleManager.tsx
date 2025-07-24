@@ -52,14 +52,18 @@ const ScheduleManager = ({
   const [selectedClass, setSelectedClass] = useState<string>('');
   const [selectedSubject, setSelectedSubject] = useState('');
   const [selectedTeacher, setSelectedTeacher] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [startTime, setStartTime] = useState('');
+  const [endTime, setEndTime] = useState('');
+  const [eventDate, setEventDate] = useState('');
   const [isAllDay, setIsAllDay] = useState(false);
 
   // Recurrence state
   const [recurrence, setRecurrence] = useState('none'); // none, daily, weekly, monthly, yearly
   const [interval, setInterval] = useState(1);
   const [weekdays, setWeekdays] = useState<string[]>([]); // MO, TU, WE, TH, FR, SA, SU
+  const [monthlyType, setMonthlyType] = useState('day_of_month'); // day_of_month, day_of_week
+  const [monthlyWeek, setMonthlyWeek] = useState('1'); // 1, 2, 3, 4, -1
+  const [monthlyWeekday, setMonthlyWeekday] = useState('MO'); // MO, TU...
   const [endType, setEndType] = useState('never'); // never, until, count
   const [untilDate, setUntilDate] = useState('');
   const [count, setCount] = useState(1);
@@ -72,13 +76,21 @@ const ScheduleManager = ({
       setEndType('never');
       setUntilDate('');
       setCount(1);
+      setMonthlyType('day_of_month');
+      setMonthlyWeek('1');
+      setMonthlyWeekday('MO');
     };
 
     if (isDialogOpen) {
       if (selectedEvent) {
         const { start, end, allDay, extendedProps } = selectedEvent.event;
-        setStartDate(start?.toISOString().slice(0, 16) || '');
-        setEndDate(end?.toISOString().slice(0, 16) || '');
+        const startDt = start ? new Date(start) : new Date();
+        const endDt = end ? new Date(end) : new Date(startDt.getTime() + 60 * 60 * 1000);
+        
+        setEventDate(startDt.toISOString().split('T')[0]);
+        setStartTime(startDt.toISOString().split('T')[1].slice(0, 5));
+        setEndTime(endDt.toISOString().split('T')[1].slice(0, 5));
+
         setIsAllDay(allDay);
         setSelectedClass(extendedProps.classId);
         setSelectedSubject(extendedProps.subjectId);
@@ -87,21 +99,29 @@ const ScheduleManager = ({
         if (extendedProps.rrule) {
           try {
             const rule = RRule.fromString(extendedProps.rrule);
-            const { freq, interval, byweekday, until, count } = rule.options;
+            const { freq, interval, byweekday, bysetpos, until, count } = rule.options;
             const freqMap = ['yearly', 'monthly', 'weekly', 'daily'];
             setRecurrence(freqMap[freq] || 'none');
             setInterval(interval || 1);
+            
             if (byweekday) {
-              // RRule weekday numbers are 0-6 for MO-SU
               const weekdayStrMap = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'];
-              setWeekdays(byweekday.map((day) => weekdayStrMap[day]));
+              setWeekdays(byweekday.map((day: number) => weekdayStrMap[day]));
             } else {
               setWeekdays([]);
             }
 
+            if (freq === RRule.MONTHLY.freq && byweekday && bysetpos && bysetpos.length > 0) {
+              setMonthlyType('day_of_week');
+              setMonthlyWeek(String(bysetpos[0]));
+              const weekdayMapFromNum = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'];
+              setMonthlyWeekday(weekdayMapFromNum[byweekday[0] as number]);
+            } else {
+              setMonthlyType('day_of_month');
+            }
+
             if (until) {
               setEndType('until');
-              // Format date as YYYY-MM-DD for the input[type=date]
               setUntilDate(new Date(until).toISOString().split('T')[0]);
             } else if (count) {
               setEndType('count');
@@ -117,8 +137,17 @@ const ScheduleManager = ({
           resetRecurrence();
         }
       } else if (selectedDateInfo) {
-        setStartDate(selectedDateInfo.startStr.slice(0, 16));
-        setEndDate(selectedDateInfo.endStr.slice(0, 16));
+        if (selectedDateInfo.allDay) {
+          setEventDate(selectedDateInfo.startStr);
+          setStartTime('09:00');
+          setEndTime('10:00');
+        } else {
+          const startDtInfo = new Date(selectedDateInfo.startStr);
+          const endDtInfo = new Date(selectedDateInfo.endStr);
+          setEventDate(startDtInfo.toISOString().split('T')[0]);
+          setStartTime(startDtInfo.toISOString().split('T')[1].slice(0, 5));
+          setEndTime(endDtInfo.toISOString().split('T')[1].slice(0, 5));
+        }
         setIsAllDay(selectedDateInfo.allDay);
         resetRecurrence();
       }
@@ -188,14 +217,19 @@ const ScheduleManager = ({
         SU: RRule.SU,
       };
 
+      const dtStart = new Date(`${eventDate}T${startTime}`);
       const options: any = {
         freq: freqMap[recurrence],
-        dtstart: new Date(startDate),
+        dtstart: dtStart,
         interval: Number(interval) || 1,
       };
 
       if (recurrence === 'weekly' && weekdays.length > 0) {
         options.byweekday = weekdays.map((day) => weekdayMap[day]);
+      }
+
+      if (recurrence === 'monthly' && monthlyType === 'day_of_week') {
+        options.byweekday = [weekdayMap[monthlyWeekday].nth(Number(monthlyWeek))];
       }
 
       if (endType === 'until' && untilDate) {
@@ -225,8 +259,8 @@ const ScheduleManager = ({
       classId: selectedClass,
       subjectId: selectedSubject,
       teacherId: selectedTeacher,
-      startDate: new Date(startDate).toISOString(),
-      endDate: new Date(endDate).toISOString(),
+      startDate: new Date(`${eventDate}T${startTime}`).toISOString(),
+      endDate: new Date(`${eventDate}T${endTime}`).toISOString(),
       isAllDay,
       rrule: rruleString,
     };
@@ -278,6 +312,9 @@ const ScheduleManager = ({
     setRecurrence('none');
     setInterval(1);
     setWeekdays([]);
+    setMonthlyType('day_of_month');
+    setMonthlyWeek('1');
+    setMonthlyWeekday('MO');
     setEndType('never');
     setUntilDate('');
     setCount(1);
@@ -355,12 +392,12 @@ const ScheduleManager = ({
               </Select>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="start-date" className="text-right">Start Time</Label>
-              <Input id="start-date" type="datetime-local" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="col-span-3" />
+              <Label htmlFor="start-time" className="text-right">Start Time</Label>
+              <Input id="start-time" type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="col-span-3" />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="end-date" className="text-right">End Time</Label>
-              <Input id="end-date" type="datetime-local" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="col-span-3" />
+              <Label htmlFor="end-time" className="text-right">End Time</Label>
+              <Input id="end-time" type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="col-span-3" />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="all-day" className="text-right">All-day</Label>
@@ -425,6 +462,50 @@ const ScheduleManager = ({
                       <ToggleGroupItem value="SU">Su</ToggleGroupItem>
                     </ToggleGroup>
                   </div>
+                )}
+
+                {recurrence === 'monthly' && (
+                  <>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label className="text-right">On</Label>
+                      <Select value={monthlyType} onValueChange={setMonthlyType}>
+                        <SelectTrigger className="col-span-3"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="day_of_month">Day of the month (e.g. 24th)</SelectItem>
+                          <SelectItem value="day_of_week">Day of the week (e.g. 4th Tue)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {monthlyType === 'day_of_week' && (
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <div/>
+                        <div className="col-span-3 flex gap-2">
+                          <Select value={monthlyWeek} onValueChange={setMonthlyWeek}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="1">First</SelectItem>
+                              <SelectItem value="2">Second</SelectItem>
+                              <SelectItem value="3">Third</SelectItem>
+                              <SelectItem value="4">Fourth</SelectItem>
+                              <SelectItem value="-1">Last</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Select value={monthlyWeekday} onValueChange={setMonthlyWeekday}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="SU">Sunday</SelectItem>
+                              <SelectItem value="MO">Monday</SelectItem>
+                              <SelectItem value="TU">Tuesday</SelectItem>
+                              <SelectItem value="WE">Wednesday</SelectItem>
+                              <SelectItem value="TH">Thursday</SelectItem>
+                              <SelectItem value="FR">Friday</SelectItem>
+                              <SelectItem value="SA">Saturday</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
 
                 <div className="grid grid-cols-4 items-center gap-4">
