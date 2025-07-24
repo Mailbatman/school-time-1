@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { GetServerSideProps } from 'next';
-import { createClient } from '@/util/supabase/server-props';
+import { createClient as createServerPropsClient } from '@/util/supabase/server-props';
+import { createClient } from '@supabase/supabase-js';
 import prisma from '@/lib/prisma';
 import { Class, Student, Subject, User as DbUser, Schedule, Role } from '@prisma/client';
 import ScheduleManager from '@/components/ScheduleManager';
@@ -416,7 +417,7 @@ const ManagePage = ({ initialClasses, initialStudents, initialSubjects, teachers
 };
 
 export const getServerSideProps: GetServerSideProps = async (ctx) => {
-  const supabase = createClient(ctx);
+  const supabase = createServerPropsClient(ctx);
   const { data: { session } } = await supabase.auth.getSession();
 
   if (!session) {
@@ -462,7 +463,12 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
     });
 
     if (!dummyTeacher) {
-      const { data: { user: authUser }, error } = await supabase.auth.admin.createUser({
+      const supabaseAdmin = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+      );
+
+      const { data: { user: authUser }, error } = await supabaseAdmin.auth.admin.createUser({
         email: dummyTeacherEmail,
         email_confirm: true, // Automatically confirm the email
       });
