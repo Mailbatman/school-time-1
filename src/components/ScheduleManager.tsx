@@ -111,7 +111,7 @@ const ScheduleManager = ({
               setWeekdays([]);
             }
 
-            if (freq === RRule.MONTHLY.freq && byweekday && bysetpos && bysetpos.length > 0) {
+            if (freq === RRule.MONTHLY && byweekday && bysetpos && bysetpos.length > 0) {
               setMonthlyType('day_of_week');
               setMonthlyWeek(String(bysetpos[0]));
               const weekdayMapFromNum = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'];
