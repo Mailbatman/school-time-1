@@ -1,10 +1,12 @@
 import { useState, useCallback } from 'react';
 import { GetServerSideProps } from 'next';
+import { useRouter } from 'next/router';
 import { createClient as createServerPropsClient } from '@/util/supabase/server-props';
 import { createClient } from '@supabase/supabase-js';
 import prisma from '@/lib/prisma';
 import { Class, Student, Subject, User as DbUser, Schedule, Role } from '@prisma/client';
 import ScheduleManager from '@/components/ScheduleManager';
+import SubjectManager from '@/components/SubjectManager';
 import TimetableView from '@/components/TimetableView';
 import ScheduleDialog, { ScheduleInitialData } from '@/components/ScheduleDialog';
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -58,7 +60,7 @@ import { EventClickArg, DateSelectArg } from '@fullcalendar/core';
 type FullSchedule = Schedule & { class: Class; subject: Subject; teacher: DbUser };
 
 type ManagePageProps = {
-  initialClasses: (Class & { teachers: DbUser[]; isActive: boolean; subjects: { subject: Subject }[] })[];
+  initialClasses: (Class & { teachers: DbUser[]; isActive: boolean; classSubjects: { subject: Subject }[] })[];
   initialStudents: (Student & { class: Class })[];
   initialSubjects: Subject[];
   teachers: DbUser[];
@@ -66,18 +68,21 @@ type ManagePageProps = {
 };
 
 const ManagePage = ({ initialClasses, initialStudents, initialSubjects, teachers, initialSchedules }: ManagePageProps) => {
+  const router = useRouter();
   const [classes, setClasses] = useState(() => initialClasses.sort((a, b) => a.name.localeCompare(b.name)));
   const [students, setStudents] = useState(initialStudents);
-  const [subjects, setSubjects] = useState(initialSubjects);
   const [schedules, setSchedules] = useState<FullSchedule[]>(initialSchedules);
   const [isScheduleDialogOpen, setScheduleDialogOpen] = useState(false);
   const [scheduleInitialData, setScheduleInitialData] = useState<ScheduleInitialData | null>(null);
   const [newClassName, setNewClassName] = useState('');
   const [newStudent, setNewStudent] = useState({ firstName: '', lastName: '', classId: '', parentEmail: '' });
-  const [newSubjectName, setNewSubjectName] = useState('');
   const [editingClass, setEditingClass] = useState<Class | null>(null);
   const [renamingClassName, setRenamingClassName] = useState('');
   const [classToDeactivate, setClassToDeactivate] = useState<Class | null>(null);
+
+  const handleAssignmentChange = () => {
+    router.replace(router.asPath);
+  };
 
   const handleOpenScheduleDialog = useCallback((data: ScheduleInitialData) => {
     setScheduleInitialData(data);
@@ -279,24 +284,6 @@ const ManagePage = ({ initialClasses, initialStudents, initialSubjects, teachers
     }
   };
 
-  const handleCreateSubject = async () => {
-    if (!newSubjectName) return;
-    const res = await fetch('/api/subjects', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: newSubjectName }),
-    });
-    if (res.ok) {
-      const createdSubject = await res.json();
-      setSubjects([...subjects, createdSubject]);
-      setNewSubjectName('');
-      toast({ title: 'Subject created' });
-    } else {
-      const { error } = await res.json();
-      toast({ title: 'Error creating subject', description: error, variant: 'destructive' });
-    }
-  };
-
   return (
     <ProtectedRoute roles={['SCHOOL_ADMIN']}>
       <Header />
@@ -401,39 +388,11 @@ const ManagePage = ({ initialClasses, initialStudents, initialSubjects, teachers
           </TabsContent>
 
           <TabsContent value="subjects">
-            <Card>
-              <CardHeader>
-                <CardTitle>Subjects</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex gap-2 mb-4">
-                  <Input
-                    placeholder="New subject name"
-                    value={newSubjectName}
-                    onChange={(e) => setNewSubjectName(e.target.value)}
-                  />
-                  <Button onClick={handleCreateSubject}>Add Subject</Button>
-                </div>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {subjects.map((s) => (
-                      <TableRow key={s.id}>
-                        <TableCell>{s.name}</TableCell>
-                        <TableCell className="text-right">
-                          {/* Placeholder for future actions */}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+            <SubjectManager 
+              initialClasses={initialClasses}
+              initialSubjects={initialSubjects}
+              onAssignmentChange={handleAssignmentChange}
+            />
           </TabsContent>
 
           <TabsContent value="students">
@@ -612,7 +571,7 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
 
   const transformedClasses = initialClasses.map(c => ({
     ...c,
-    subjects: c.classSubjects.map(cs => ({ subject: cs.subject }))
+    classSubjects: c.classSubjects.map(cs => ({ subject: cs.subject }))
   }));
 
   return {
