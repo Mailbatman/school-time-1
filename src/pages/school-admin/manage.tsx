@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { GetServerSideProps } from 'next';
 import { createClient as createServerPropsClient } from '@/util/supabase/server-props';
 import { createClient } from '@supabase/supabase-js';
@@ -6,6 +6,7 @@ import prisma from '@/lib/prisma';
 import { Class, Student, Subject, User as DbUser, Schedule, Role } from '@prisma/client';
 import ScheduleManager from '@/components/ScheduleManager';
 import TimetableView from '@/components/TimetableView';
+import ScheduleDialog, { ScheduleInitialData } from '@/components/ScheduleDialog';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Header from '@/components/Header';
 import { Button } from '@/components/ui/button';
@@ -52,24 +53,117 @@ import {
   TabsTrigger,
 } from '@/components/ui/tabs';
 
+import { EventClickArg, DateSelectArg } from '@fullcalendar/core';
+
+type FullSchedule = Schedule & { class: Class; subject: Subject; teacher: DbUser };
+
 type ManagePageProps = {
   initialClasses: (Class & { teachers: DbUser[]; isActive: boolean; subjects: { subject: Subject }[] })[];
   initialStudents: (Student & { class: Class })[];
   initialSubjects: Subject[];
   teachers: DbUser[];
-  initialSchedules: (Schedule & { class: Class; subject: Subject; teacher: DbUser })[];
+  initialSchedules: FullSchedule[];
 };
 
 const ManagePage = ({ initialClasses, initialStudents, initialSubjects, teachers, initialSchedules }: ManagePageProps) => {
   const [classes, setClasses] = useState(() => initialClasses.sort((a, b) => a.name.localeCompare(b.name)));
   const [students, setStudents] = useState(initialStudents);
   const [subjects, setSubjects] = useState(initialSubjects);
+  const [schedules, setSchedules] = useState<FullSchedule[]>(initialSchedules);
+  const [isScheduleDialogOpen, setScheduleDialogOpen] = useState(false);
+  const [scheduleInitialData, setScheduleInitialData] = useState<ScheduleInitialData | null>(null);
   const [newClassName, setNewClassName] = useState('');
   const [newStudent, setNewStudent] = useState({ firstName: '', lastName: '', classId: '', parentEmail: '' });
   const [newSubjectName, setNewSubjectName] = useState('');
   const [editingClass, setEditingClass] = useState<Class | null>(null);
   const [renamingClassName, setRenamingClassName] = useState('');
   const [classToDeactivate, setClassToDeactivate] = useState<Class | null>(null);
+
+  const handleOpenScheduleDialog = useCallback((data: ScheduleInitialData) => {
+    setScheduleInitialData(data);
+    setScheduleDialogOpen(true);
+  }, []);
+
+  const handleEventClick = useCallback((clickInfo: EventClickArg) => {
+    const { extendedProps } = clickInfo.event;
+    handleOpenScheduleDialog({
+      id: clickInfo.event.id,
+      classId: extendedProps.classId,
+      subjectId: extendedProps.subjectId,
+      teacherId: extendedProps.teacherId,
+      startDate: clickInfo.event.startStr,
+      endDate: clickInfo.event.endStr,
+      isAllDay: clickInfo.event.allDay,
+      rrule: extendedProps.rrule,
+    });
+  }, [handleOpenScheduleDialog]);
+
+  const handleDateSelect = useCallback((selectInfo: DateSelectArg, classId: string) => {
+    handleOpenScheduleDialog({
+      classId: classId,
+      startDate: selectInfo.startStr,
+      endDate: selectInfo.endStr,
+      isAllDay: selectInfo.allDay,
+    });
+  }, [handleOpenScheduleDialog]);
+
+  const handleTimetableViewSelectSlot = useCallback(({ start, end, classId }: { start: Date; end: Date; classId?: string }) => {
+    handleOpenScheduleDialog({
+      classId: classId,
+      startDate: start.toISOString(),
+      endDate: end.toISOString(),
+      isAllDay: false,
+    });
+  }, [handleOpenScheduleDialog]);
+
+  const handleTimetableViewSelectEvent = useCallback((event: any) => {
+    handleOpenScheduleDialog({
+      id: event.id,
+      classId: event.classId,
+      subjectId: event.subjectId,
+      teacherId: event.teacherId,
+      startDate: event.startTime.toISOString(),
+      endDate: event.endTime.toISOString(),
+      isAllDay: event.isAllDay,
+      rrule: event.rrule,
+    });
+  }, [handleOpenScheduleDialog]);
+
+  const handleSaveSchedule = async (data: any) => {
+    const res = await fetch('/api/schedules', {
+      method: data.id ? 'PUT' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+
+    if (res.ok) {
+      const savedSchedule = await res.json();
+      
+      const findTeacher = (id: string) => teachers.find(t => t.id === id);
+      const findSubject = (id: string) => initialSubjects.find(s => s.id === id);
+      const findClass = (id: string) => initialClasses.find(c => c.id === id);
+
+      const fullSchedule: FullSchedule = {
+        ...savedSchedule,
+        teacher: findTeacher(savedSchedule.teacherId)!,
+        subject: findSubject(savedSchedule.subjectId)!,
+        class: findClass(savedSchedule.classId)!,
+      };
+
+      if (data.id) {
+        setSchedules(schedules.map((s) => (s.id === fullSchedule.id ? fullSchedule : s)));
+      } else {
+        setSchedules([...schedules, fullSchedule]);
+      }
+      toast({ title: 'Schedule saved successfully' });
+      setScheduleDialogOpen(false);
+    } else {
+      const result = await res.json();
+      const error = result.error || 'An unknown error occurred';
+      const description = Array.isArray(error) ? error.map(e => `${e.path.join('.')}: ${e.message}`).join(', ') : error;
+      toast({ title: 'Failed to save schedule', description, variant: 'destructive' });
+    }
+  };
 
   const handleAddSection = async (baseClassName: string) => {
     const parts = baseClassName.split('-');
@@ -208,6 +302,17 @@ const ManagePage = ({ initialClasses, initialStudents, initialSubjects, teachers
       <Header />
       <main className="p-8">
         <h1 className="text-2xl font-bold mb-4">School Admin Dashboard</h1>
+
+        <ScheduleDialog
+          isOpen={isScheduleDialogOpen}
+          onOpenChange={setScheduleDialogOpen}
+          onSave={handleSaveSchedule}
+          initialData={scheduleInitialData}
+          classes={initialClasses}
+          subjects={initialSubjects}
+          teachers={teachers}
+        />
+
         <Tabs defaultValue="classes">
           <TabsList className="mb-4">
             <TabsTrigger value="classes">Manage Classes</TabsTrigger>
@@ -391,17 +496,19 @@ const ManagePage = ({ initialClasses, initialStudents, initialSubjects, teachers
           <TabsContent value="schedule">
             <ScheduleManager 
               classes={initialClasses} 
-              subjects={initialSubjects} 
-              teachers={teachers} 
-              initialSchedules={initialSchedules} 
+              schedules={schedules}
+              onEventClick={handleEventClick}
+              onDateSelect={handleDateSelect}
             />
           </TabsContent>
 
           <TabsContent value="visual-timetable">
             <TimetableView 
-              schedules={initialSchedules}
+              schedules={schedules}
               classes={initialClasses}
               teachers={teachers}
+              onSelectEvent={handleTimetableViewSelectEvent}
+              onSelectSlot={handleTimetableViewSelectSlot}
             />
           </TabsContent>
         </Tabs>
