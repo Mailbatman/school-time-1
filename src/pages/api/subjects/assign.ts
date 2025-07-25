@@ -17,12 +17,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   // Check if the user is a school admin
-  const dbUser = await prisma.dbUser.findUnique({
+  const userRecord = await prisma.user.findUnique({
     where: { id: user.id },
     include: { school: true },
   });
 
-  if (!dbUser || dbUser.role !== 'SCHOOL_ADMIN' || !dbUser.schoolId) {
+  if (!userRecord || userRecord.role !== 'SCHOOL_ADMIN' || !userRecord.schoolId) {
     return res.status(403).json({ error: 'Forbidden: User is not a school admin.' });
   }
 
@@ -37,7 +37,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const subject = await prisma.subject.findFirst({
       where: {
         id: subjectId,
-        schoolId: dbUser.schoolId,
+        schoolId: userRecord.schoolId,
       },
     });
 
@@ -48,7 +48,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const classes = await prisma.class.findMany({
       where: {
         id: { in: classIds },
-        schoolId: dbUser.schoolId,
+        schoolId: userRecord.schoolId,
       },
     });
 
