@@ -23,7 +23,7 @@ const groupClassesByGrade = (classes: FullClass[]) => {
 };
 
 // Draggable Subject Item
-const DraggableSubject = ({ subject }: { subject: FullSubject }) => {
+const DraggableSubject = React.memo(({ subject }: { subject: FullSubject }) => {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({
     id: `subject-${subject.id}`,
     data: { type: 'subject', subject },
@@ -44,10 +44,10 @@ const DraggableSubject = ({ subject }: { subject: FullSubject }) => {
       </Card>
     </div>
   );
-};
+});
 
 // Droppable Class Item
-const DroppableClass = ({ classItem }: { classItem: FullClass }) => {
+const DroppableClass = React.memo(({ classItem }: { classItem: FullClass }) => {
   const { isOver, setNodeRef } = useDroppable({
     id: `class-${classItem.id}`,
     data: { type: 'class', classItem },
@@ -69,10 +69,10 @@ const DroppableClass = ({ classItem }: { classItem: FullClass }) => {
       </Card>
     </div>
   );
-};
+});
 
 // Droppable Grade Group
-const DroppableGrade = ({ grade, classes }: { grade: string; classes: FullClass[] }) => {
+const DroppableGrade = React.memo(({ grade, classes }: { grade: string; classes: FullClass[] }) => {
     const { isOver, setNodeRef } = useDroppable({
         id: `grade-${grade}`,
         data: { type: 'grade', classes },
@@ -106,7 +106,7 @@ const DroppableGrade = ({ grade, classes }: { grade: string; classes: FullClass[
             </div>
         </div>
     );
-};
+});
 
 
 interface SubjectManagerProps {
@@ -194,8 +194,8 @@ const SubjectManager = ({ initialSubjects, initialClasses, onAssignmentChange }:
 
       toast({ title: 'Success', description: `Assigned "${subject.name}" successfully.` });
       
-      // Still call the parent refresh to ensure data consistency in the background
-      onAssignmentChange(); 
+      // The UI has been updated optimistically. A full refresh is no longer needed for a smooth experience.
+      // onAssignmentChange(); 
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
       // Revert optimistic update on failure
