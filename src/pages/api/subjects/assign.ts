@@ -67,10 +67,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Prisma's implicit M2M tables are named `_ClassToSubject`. Let's check schema.
     
     // The relation is explicit through `ClassSubject`. We create new entries there.
-    const assignments = classIds.map(classId => ({
-      classId: classId,
-      subjectId: subjectId,
-    }));
 
     await prisma.classSubject.createMany({
       data: assignments,
