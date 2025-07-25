@@ -78,9 +78,27 @@ const DroppableGrade = ({ grade, classes }: { grade: string; classes: FullClass[
         data: { type: 'grade', classes },
     });
 
+    const gradeSubjects = useMemo(() => {
+        const allClassSubjects = classes.flatMap(c => c.classSubjects);
+        const uniqueSubjects = new Map<string, FullSubject>();
+        allClassSubjects.forEach(cs => {
+            if (cs.subject && !uniqueSubjects.has(cs.subject.id)) {
+                uniqueSubjects.set(cs.subject.id, cs.subject);
+            }
+        });
+        return Array.from(uniqueSubjects.values()).sort((a, b) => a.name.localeCompare(b.name));
+    }, [classes]);
+
     return (
         <div ref={setNodeRef} className={`p-4 rounded-lg transition-colors ${isOver ? 'bg-blue-100 dark:bg-blue-900/50' : 'bg-muted/40'}`}>
-            <h3 className="text-lg font-bold mb-2 text-primary">{grade}</h3>
+            <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-bold text-primary">{grade}</h3>
+                <div className="flex flex-wrap gap-1 justify-end max-w-[70%]">
+                    {gradeSubjects.map(subject => (
+                        <Badge key={subject.id} variant="outline">{subject.name}</Badge>
+                    ))}
+                </div>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {classes.map(classItem => (
                     <DroppableClass key={classItem.id} classItem={classItem} />
