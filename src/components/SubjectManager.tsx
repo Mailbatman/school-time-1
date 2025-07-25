@@ -154,10 +154,34 @@ const SubjectManager = ({ initialSubjects, initialClasses, onAssignmentChange }:
         throw new Error(errorData.error || 'Failed to assign subject');
       }
 
+      // Optimistic UI update
+      const updatedClasses = classes.map(c => {
+        if (targetClassIds.includes(c.id)) {
+          // Create a mock ClassSubject to add to the class
+          const newClassSubject: ClassSubject & { subject: FullSubject } = {
+            id: `temp-${Date.now()}`, // Temporary unique ID
+            classId: c.id,
+            subjectId: subject.id,
+            teacherId: null,
+            subject: subject,
+          };
+          return {
+            ...c,
+            classSubjects: [...c.classSubjects, newClassSubject],
+          };
+        }
+        return c;
+      });
+      setClasses(updatedClasses);
+
       toast({ title: 'Success', description: `Assigned "${subject.name}" successfully.` });
-      onAssignmentChange(); // Trigger data refresh in parent
+      
+      // Still call the parent refresh to ensure data consistency in the background
+      onAssignmentChange(); 
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      // Revert optimistic update on failure
+      setClasses(initialClasses);
     }
   };
 
