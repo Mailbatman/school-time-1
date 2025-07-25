@@ -5,6 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 import prisma from '@/lib/prisma';
 import { Class, Student, Subject, User as DbUser, Schedule, Role } from '@prisma/client';
 import ScheduleManager from '@/components/ScheduleManager';
+import TimetableView from '@/components/TimetableView';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Header from '@/components/Header';
 import { Button } from '@/components/ui/button';
@@ -213,6 +214,7 @@ const ManagePage = ({ initialClasses, initialStudents, initialSubjects, teachers
             <TabsTrigger value="subjects">Manage Subjects</TabsTrigger>
             <TabsTrigger value="students">Manage Students</TabsTrigger>
             <TabsTrigger value="schedule">Manage Schedule</TabsTrigger>
+            <TabsTrigger value="visual-timetable">Visual Timetable</TabsTrigger>
           </TabsList>
 
           <TabsContent value="classes">
@@ -392,6 +394,14 @@ const ManagePage = ({ initialClasses, initialStudents, initialSubjects, teachers
               subjects={initialSubjects} 
               teachers={teachers} 
               initialSchedules={initialSchedules} 
+            />
+          </TabsContent>
+
+          <TabsContent value="visual-timetable">
+            <TimetableView 
+              schedules={initialSchedules}
+              classes={initialClasses}
+              teachers={teachers}
             />
           </TabsContent>
         </Tabs>
