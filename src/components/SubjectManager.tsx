@@ -160,6 +160,29 @@ const SubjectManager = ({ initialSubjects, initialClasses, onAssignmentChange }:
 
     if (targetClassIds.length === 0) return;
 
+    // Store original state for potential rollback
+    const originalClasses = classes;
+
+    // Perform optimistic UI update immediately
+    const newOptimisticClasses = originalClasses.map(c => {
+      if (targetClassIds.includes(c.id)) {
+        const newClassSubject: ClassSubject & { subject: FullSubject } = {
+          id: `temp-${subject.id}-${c.id}-${Date.now()}`, // More robust temp key
+          classId: c.id,
+          subjectId: subject.id,
+          teacherId: null,
+          subject: subject,
+        };
+        return {
+          ...c,
+          classSubjects: [...c.classSubjects, newClassSubject],
+        };
+      }
+      return c;
+    });
+    setClasses(newOptimisticClasses);
+
+    // Perform the API call in the background
     try {
       const response = await fetch('/api/subjects/assign', {
         method: 'POST',
@@ -172,34 +195,21 @@ const SubjectManager = ({ initialSubjects, initialClasses, onAssignmentChange }:
         throw new Error(errorData.error || 'Failed to assign subject');
       }
 
-      // Optimistic UI update
-      const updatedClasses = classes.map(c => {
-        if (targetClassIds.includes(c.id)) {
-          // Create a mock ClassSubject to add to the class
-          const newClassSubject: ClassSubject & { subject: FullSubject } = {
-            id: `temp-${Date.now()}`, // Temporary unique ID
-            classId: c.id,
-            subjectId: subject.id,
-            teacherId: null,
-            subject: subject,
-          };
-          return {
-            ...c,
-            classSubjects: [...c.classSubjects, newClassSubject],
-          };
-        }
-        return c;
-      });
-      setClasses(updatedClasses);
-
+      // On success, the optimistic UI is correct. We can show a success toast.
       toast({ title: 'Success', description: `Assigned "${subject.name}" successfully.` });
       
-      // The UI has been updated optimistically. A full refresh is no longer needed for a smooth experience.
-      // onAssignmentChange(); 
+      // Optionally, trigger a full data refresh from the parent to sync with the DB state,
+      // which replaces temp IDs with real ones. This can be done silently.
+      onAssignmentChange();
+
     } catch (error: any) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
-      // Revert optimistic update on failure
-      setClasses(initialClasses);
+      // If the API call fails, revert the UI change and show an error message.
+      toast({
+        title: 'Assignment Failed',
+        description: `Could not assign "${subject.name}". The change has been reverted.`,
+        variant: 'destructive',
+      });
+      setClasses(originalClasses); // Revert to the original state
     }
   };
 
