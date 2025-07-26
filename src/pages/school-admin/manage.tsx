@@ -569,14 +569,9 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
     teachers.push(dummyTeacher);
   }
 
-  const transformedClasses = initialClasses.map(c => ({
-    ...c,
-    classSubjects: c.classSubjects.map(cs => ({ subject: cs.subject }))
-  }));
-
   return {
     props: {
-      initialClasses: JSON.parse(JSON.stringify(transformedClasses)),
+      initialClasses: JSON.parse(JSON.stringify(initialClasses)),
       initialStudents: JSON.parse(JSON.stringify(initialStudents)),
       initialSubjects: JSON.parse(JSON.stringify(initialSubjects)),
       teachers: JSON.parse(JSON.stringify(teachers)),
