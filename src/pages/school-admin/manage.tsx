@@ -4,7 +4,7 @@ import { useRouter } from 'next/router';
 import { createClient as createServerPropsClient } from '@/util/supabase/server-props';
 import { createClient } from '@supabase/supabase-js';
 import prisma from '@/lib/prisma';
-import { Class, Student, Subject, User as DbUser, Schedule, Role } from '@prisma/client';
+import { Class, Student, Subject, User as DbUser, Schedule, Role, ClassSubject } from '@prisma/client';
 import ScheduleManager from '@/components/ScheduleManager';
 import SubjectManager from '@/components/SubjectManager';
 import TimetableView from '@/components/TimetableView';
@@ -60,7 +60,7 @@ import { EventClickArg, DateSelectArg } from '@fullcalendar/core';
 type FullSchedule = Schedule & { class: Class; subject: Subject; teacher: DbUser };
 
 type ManagePageProps = {
-  initialClasses: (Class & { teachers: DbUser[]; isActive: boolean; classSubjects: { subject: Subject }[] })[];
+  initialClasses: (Class & { teachers: DbUser[]; isActive: boolean; classSubjects: (ClassSubject & { subject: Subject })[] })[];
   initialStudents: (Student & { class: Class })[];
   initialSubjects: Subject[];
   teachers: DbUser[];
