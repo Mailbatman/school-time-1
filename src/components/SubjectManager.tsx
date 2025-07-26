@@ -62,7 +62,7 @@ const DroppableClass = React.memo(({ classItem }: { classItem: FullClass }) => {
         <CardContent className="p-3 min-h-[50px]">
           <div className="flex flex-wrap gap-1">
             {classItem.classSubjects.map(cs => (
-              <Badge key={cs.subject.id} variant="secondary">{cs.subject.name}</Badge>
+              <Badge key={cs.id} variant="secondary">{cs.subject.name}</Badge>
             ))}
           </div>
         </CardContent>
