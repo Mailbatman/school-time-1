@@ -198,9 +198,9 @@ const SubjectManager = ({ initialSubjects, initialClasses, onAssignmentChange }:
       // On success, the optimistic UI is correct. We can show a success toast.
       toast({ title: 'Success', description: `Assigned "${subject.name}" successfully.` });
       
-      // Optionally, trigger a full data refresh from the parent to sync with the DB state,
-      // which replaces temp IDs with real ones. This can be done silently.
-      onAssignmentChange();
+      // The UI is now updated optimistically. A background refresh is removed to prevent hydration errors
+      // and ensure a smoother experience. The data will be fully synced on the next page load.
+      // onAssignmentChange();
 
     } catch (error: any) {
       // If the API call fails, revert the UI change and show an error message.
