@@ -5,6 +5,19 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from '@/components/ui/use-toast';
 import { Class, Subject, ClassSubject } from '@prisma/client';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+  DialogClose,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Pencil } from 'lucide-react';
 
 // Define extended types to include relations
 type FullSubject = Subject;
@@ -23,7 +36,7 @@ const groupClassesByGrade = (classes: FullClass[]) => {
 };
 
 // Draggable Subject Item
-const DraggableSubject = React.memo(({ subject }: { subject: FullSubject }) => {
+const DraggableSubject = React.memo(({ subject, onEdit }: { subject: FullSubject; onEdit: (subject: FullSubject) => void; }) => {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({
     id: `subject-${subject.id}`,
     data: { type: 'subject', subject },
@@ -36,10 +49,15 @@ const DraggableSubject = React.memo(({ subject }: { subject: FullSubject }) => {
   } : undefined;
 
   return (
-    <div ref={setNodeRef} style={style} {...listeners} {...attributes}>
-      <Card className="mb-2 cursor-grab active:cursor-grabbing">
-        <CardContent className="p-3">
-          <p className="font-semibold">{subject.name}</p>
+    <div ref={setNodeRef} style={style}>
+      <Card className="mb-2 group">
+        <CardContent className="p-3 flex items-center justify-between">
+          <div {...listeners} {...attributes} className="flex-grow cursor-grab active:cursor-grabbing">
+            <p className="font-semibold">{subject.name}</p>
+          </div>
+          <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => onEdit(subject)}>
+            <Pencil className="h-4 w-4" />
+          </Button>
         </CardContent>
       </Card>
     </div>
@@ -115,9 +133,19 @@ interface SubjectManagerProps {
   onAssignmentChange: () => void; // Callback to refresh data on the parent page
 }
 
+interface SubjectManagerProps {
+  initialSubjects: FullSubject[];
+  initialClasses: FullClass[];
+  onAssignmentChange: () => void; // Callback to refresh data on the parent page
+}
+
 const SubjectManager = ({ initialSubjects, initialClasses, onAssignmentChange }: SubjectManagerProps) => {
   const [subjects, setSubjects] = useState<FullSubject[]>(initialSubjects);
   const [classes, setClasses] = useState<FullClass[]>(initialClasses);
+  const [newSubjectName, setNewSubjectName] = useState('');
+  const [isAddSubjectDialogOpen, setIsAddSubjectDialogOpen] = useState(false);
+  const [editingSubject, setEditingSubject] = useState<FullSubject | null>(null);
+  const [editingSubjectName, setEditingSubjectName] = useState('');
 
   useEffect(() => {
     setSubjects(initialSubjects);
@@ -125,6 +153,110 @@ const SubjectManager = ({ initialSubjects, initialClasses, onAssignmentChange }:
   }, [initialSubjects, initialClasses]);
 
   const groupedClasses = useMemo(() => groupClassesByGrade(classes), [classes]);
+
+  const handleEditSubject = (subject: FullSubject) => {
+    setEditingSubject(subject);
+    setEditingSubjectName(subject.name);
+  };
+
+  const handleUpdateSubject = async () => {
+    if (!editingSubject || !editingSubjectName.trim()) return;
+
+    const originalSubjectName = editingSubject.name;
+    const originalSubjects = [...subjects];
+    const originalClasses = [...classes];
+
+    // Optimistic UI Update
+    const updatedSubject = { ...editingSubject, name: editingSubjectName.trim() };
+    setSubjects(subjects.map(s => s.id === editingSubject.id ? updatedSubject : s));
+    setClasses(classes.map(c => ({
+      ...c,
+      classSubjects: c.classSubjects.map(cs => 
+        cs.subjectId === editingSubject.id 
+        ? { ...cs, subject: { ...cs.subject, name: editingSubjectName.trim() } } 
+        : cs
+      ),
+    })));
+    setEditingSubject(null);
+    setEditingSubjectName('');
+
+    try {
+      const response = await fetch(`/api/subjects/${editingSubject.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: editingSubjectName.trim() }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update subject');
+      }
+      
+      toast({ title: 'Success', description: 'Subject updated successfully.' });
+      // No need to refresh from server due to optimistic update
+    } catch (error: any) {
+      toast({
+        title: 'Update Failed',
+        description: `Could not update subject. The change has been reverted.`,
+        variant: 'destructive',
+      });
+      // Rollback on failure
+      setSubjects(originalSubjects);
+      setClasses(originalClasses);
+    }
+  };
+
+  const handleCreateSubject = async () => {
+    if (!newSubjectName.trim()) {
+      toast({ title: 'Error', description: 'Subject name cannot be empty.', variant: 'destructive' });
+      return;
+    }
+
+    // Optimistically add the subject to the UI
+    const tempId = `temp-${Date.now()}`;
+    const optimisticSubject: FullSubject = {
+      id: tempId,
+      name: newSubjectName.trim(),
+      schoolId: classes[0]?.schoolId, // Assuming all classes belong to the same school
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    setSubjects(prevSubjects => [...prevSubjects, optimisticSubject].sort((a, b) => a.name.localeCompare(b.name)));
+    setNewSubjectName('');
+    setIsAddSubjectDialogOpen(false);
+
+    try {
+      const response = await fetch('/api/subjects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: optimisticSubject.name }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create subject');
+      }
+
+      const newSubject = await response.json();
+      
+      // Replace optimistic subject with the real one from the server
+      setSubjects(prevSubjects => 
+        prevSubjects.map(s => s.id === tempId ? newSubject : s)
+      );
+
+      toast({ title: 'Success', description: `Subject "${newSubject.name}" created successfully.` });
+
+    } catch (error: any) {
+      toast({
+        title: 'Creation Failed',
+        description: error.message || 'Could not create the subject.',
+        variant: 'destructive',
+      });
+      // Rollback: remove the optimistic subject
+      setSubjects(prevSubjects => prevSubjects.filter(s => s.id !== tempId));
+    }
+  };
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { over, active } = event;
@@ -219,13 +351,44 @@ const SubjectManager = ({ initialSubjects, initialClasses, onAssignmentChange }:
         {/* Subjects Panel */}
         <div className="lg:col-span-1">
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between pr-4">
               <CardTitle>Subjects</CardTitle>
+              <Dialog open={isAddSubjectDialogOpen} onOpenChange={setIsAddSubjectDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm">Add Subject</Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Add New Subject</DialogTitle>
+                  </DialogHeader>
+                  <div className="grid gap-4 py-4">
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="subject-name" className="text-right">
+                        Name
+                      </Label>
+                      <Input
+                        id="subject-name"
+                        value={newSubjectName}
+                        onChange={(e) => setNewSubjectName(e.target.value)}
+                        className="col-span-3"
+                        placeholder="e.g., Mathematics"
+                        autoFocus
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <DialogClose asChild>
+                      <Button variant="outline" onClick={() => setNewSubjectName('')}>Cancel</Button>
+                    </DialogClose>
+                    <Button onClick={handleCreateSubject}>Create Subject</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </CardHeader>
             <CardContent>
-              <ScrollArea className="h-[60vh]">
+              <ScrollArea className="h-[60vh] pr-4">
                 {subjects.length > 0 ? (
-                  subjects.map(subject => <DraggableSubject key={subject.id} subject={subject} />)
+                  subjects.map(subject => <DraggableSubject key={subject.id} subject={subject} onEdit={handleEditSubject} />)
                 ) : (
                   <p>No subjects found. Please create subjects first.</p>
                 )}
@@ -245,6 +408,34 @@ const SubjectManager = ({ initialSubjects, initialClasses, onAssignmentChange }:
             </ScrollArea>
         </div>
       </div>
+      {/* Edit Subject Dialog */}
+      <Dialog open={!!editingSubject} onOpenChange={(isOpen) => !isOpen && setEditingSubject(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Subject</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-subject-name" className="text-right">
+                Name
+              </Label>
+              <Input
+                id="edit-subject-name"
+                value={editingSubjectName}
+                onChange={(e) => setEditingSubjectName(e.target.value)}
+                className="col-span-3"
+                autoFocus
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline" onClick={() => setEditingSubject(null)}>Cancel</Button>
+            </DialogClose>
+            <Button onClick={handleUpdateSubject}>Save Changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DndContext>
   );
 };

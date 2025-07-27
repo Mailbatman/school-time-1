@@ -16,7 +16,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(403).json({ error: 'Forbidden' });
   }
 
-  if (req.method === 'POST') {
+  if (req.method === 'GET') {
+    try {
+      const subjects = await prisma.subject.findMany({
+        where: { schoolId: dbUser.schoolId },
+        orderBy: { name: 'asc' },
+      });
+      res.status(200).json(subjects);
+    } catch (error) {
+      console.error('Failed to fetch subjects:', error);
+      res.status(500).json({ error: 'Failed to fetch subjects' });
+    }
+  } else if (req.method === 'POST') {
     const { name } = req.body;
 
     if (!name) {
@@ -39,7 +50,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       res.status(500).json({ error: 'Failed to create subject' });
     }
   } else {
-    res.setHeader('Allow', ['POST']);
+    res.setHeader('Allow', ['GET', 'POST']);
     res.status(405).end(`Method ${req.method} Not Allowed`);
   }
 }
