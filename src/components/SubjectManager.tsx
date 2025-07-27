@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Pencil } from 'lucide-react';
+import { Pencil, X } from 'lucide-react';
 
 // Define extended types to include relations
 type FullSubject = Subject;
@@ -65,7 +65,7 @@ const DraggableSubject = React.memo(({ subject, onEdit }: { subject: FullSubject
 });
 
 // Droppable Class Item
-const DroppableClass = React.memo(({ classItem }: { classItem: FullClass }) => {
+const DroppableClass = React.memo(({ classItem, onUnassign }: { classItem: FullClass; onUnassign: (classSubjectId: string, classId: string) => void; }) => {
   const { isOver, setNodeRef } = useDroppable({
     id: `class-${classItem.id}`,
     data: { type: 'class', classItem },
@@ -80,7 +80,16 @@ const DroppableClass = React.memo(({ classItem }: { classItem: FullClass }) => {
         <CardContent className="p-3 min-h-[50px]">
           <div className="flex flex-wrap gap-1">
             {classItem.classSubjects.map(cs => (
-              <Badge key={cs.id} variant="secondary">{cs.subject.name}</Badge>
+              <Badge key={cs.id} variant="secondary" className="flex items-center gap-1.5 pr-1.5">
+                {cs.subject.name}
+                <button
+                  onClick={() => onUnassign(cs.id, classItem.id)}
+                  className="rounded-full w-4 h-4 flex items-center justify-center text-secondary-foreground/60 hover:text-secondary-foreground hover:bg-white/20 transition-colors"
+                  aria-label={`Remove ${cs.subject.name}`}
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
             ))}
           </div>
         </CardContent>
@@ -90,7 +99,7 @@ const DroppableClass = React.memo(({ classItem }: { classItem: FullClass }) => {
 });
 
 // Droppable Grade Group
-const DroppableGrade = React.memo(({ grade, classes }: { grade: string; classes: FullClass[] }) => {
+const DroppableGrade = React.memo(({ grade, classes, onUnassign }: { grade: string; classes: FullClass[]; onUnassign: (classSubjectId: string, classId: string) => void; }) => {
     const { isOver, setNodeRef } = useDroppable({
         id: `grade-${grade}`,
         data: { type: 'grade', classes },
@@ -119,7 +128,7 @@ const DroppableGrade = React.memo(({ grade, classes }: { grade: string; classes:
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {classes.map(classItem => (
-                    <DroppableClass key={classItem.id} classItem={classItem} />
+                    <DroppableClass key={classItem.id} classItem={classItem} onUnassign={onUnassign} />
                 ))}
             </div>
         </div>
@@ -153,6 +162,44 @@ const SubjectManager = ({ initialSubjects, initialClasses, onAssignmentChange }:
   }, [initialSubjects, initialClasses]);
 
   const groupedClasses = useMemo(() => groupClassesByGrade(classes), [classes]);
+
+  const handleUnassignSubject = async (classSubjectId: string, classId: string) => {
+    const originalClasses = [...classes];
+
+    // Optimistic UI update
+    setClasses(prevClasses => prevClasses.map(c => {
+        if (c.id === classId) {
+            return {
+                ...c,
+                classSubjects: c.classSubjects.filter(cs => cs.id !== classSubjectId)
+            };
+        }
+        return c;
+    }));
+
+    try {
+        const response = await fetch(`/api/subjects/unassign`, {
+            method: 'POST', // Using POST to have a body, but acting as DELETE
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ classSubjectId }),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to unassign subject');
+        }
+
+        toast({ title: 'Success', description: 'Subject unassigned successfully.' });
+
+    } catch (error: any) {
+        toast({
+            title: 'Unassignment Failed',
+            description: `Could not unassign subject. The change has been reverted.`,
+            variant: 'destructive',
+        });
+        setClasses(originalClasses); // Rollback
+    }
+  };
 
   const handleEditSubject = (subject: FullSubject) => {
     setEditingSubject(subject);
@@ -402,7 +449,7 @@ const SubjectManager = ({ initialSubjects, initialClasses, onAssignmentChange }:
             <ScrollArea className="h-[75vh] p-4">
                 <div className="space-y-6">
                     {Object.keys(groupedClasses).sort().map(grade => (
-                        <DroppableGrade key={grade} grade={grade} classes={groupedClasses[grade]} />
+                        <DroppableGrade key={grade} grade={grade} classes={groupedClasses[grade]} onUnassign={handleUnassignSubject} />
                     ))}
                 </div>
             </ScrollArea>
