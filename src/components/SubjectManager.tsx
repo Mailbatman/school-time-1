@@ -18,29 +18,31 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Pencil, ChevronRight } from 'lucide-react';
 import { SubjectRelationshipTree } from './SubjectRelationshipTree';
+import { ClassSubjectOverview } from './ClassSubjectOverview';
 
 // Define extended types to include relations
 type FullSubject = Subject;
 type FullClass = Class & { classSubjects: (ClassSubject & { subject: FullSubject })[] };
 
 // Subject Card Item
-const SubjectCard = React.memo(({ subject, onSelect, onEdit, assignedClassCount }: { subject: FullSubject; onSelect: (subject: FullSubject) => void; onEdit: (subject: FullSubject) => void; assignedClassCount: number; }) => {
+const SubjectCard = React.memo(({ subject, onSelect, onEdit, assignedClassCount, isSelected }: { subject: FullSubject; onSelect: (subject: FullSubject) => void; onEdit: (e: React.MouseEvent, subject: FullSubject) => void; assignedClassCount: number; isSelected: boolean; }) => {
   return (
-    <Card className="mb-2 group transition-shadow hover:shadow-md">
+    <Card 
+      onClick={() => onSelect(subject)}
+      className={`mb-2 group transition-all hover:shadow-md cursor-pointer ${isSelected ? 'ring-2 ring-primary shadow-lg' : 'ring-0'}`}
+    >
       <CardContent className="p-3 flex items-center justify-between">
-        <div onClick={() => onSelect(subject)} className="flex-grow cursor-pointer flex items-center gap-4">
+        <div className="flex-grow flex items-center gap-4">
           <div>
             <p className="font-semibold">{subject.name}</p>
             <p className="text-sm text-muted-foreground">{assignedClassCount} class(es) assigned</p>
           </div>
         </div>
         <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
-          <Button variant="ghost" size="icon" onClick={() => onEdit(subject)} aria-label="Edit subject">
+          <Button variant="ghost" size="icon" onClick={(e) => onEdit(e, subject)} aria-label="Edit subject">
             <Pencil className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="icon" onClick={() => onSelect(subject)} aria-label="Manage assignments">
-            <ChevronRight className="h-4 w-4" />
-          </Button>
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
         </div>
       </CardContent>
     </Card>
@@ -114,7 +116,6 @@ const SubjectManager = ({ initialSubjects, initialClasses, onAssignmentChange }:
       } else {
         const classSubject = originalClasses.find((c: FullClass) => c.id === classId)?.classSubjects.find((cs: any) => cs.subjectId === subjectId);
         if (!classSubject || classSubject.id.startsWith('temp-')) {
-            // If it's a temp one, we just remove it from state, no API call needed
             toast({ title: 'Success', description: `Unassigned "${selectedSubject.name}" from class.` });
             onAssignmentChange();
             return;
@@ -128,14 +129,15 @@ const SubjectManager = ({ initialSubjects, initialClasses, onAssignmentChange }:
         if (!response.ok) throw new Error('Failed to unassign subject');
         toast({ title: 'Success', description: `Unassigned "${selectedSubject.name}" from class.` });
       }
-      onAssignmentChange(); // Refresh from server to get real IDs
+      onAssignmentChange();
     } catch (error) {
       toast({ title: 'Update Failed', description: 'Could not update assignment, changes were reverted.', variant: 'destructive' });
-      setClasses(originalClasses); // Rollback
+      setClasses(originalClasses);
     }
   };
 
-  const handleEditSubject = (subject: FullSubject) => {
+  const handleEditSubject = (e: React.MouseEvent, subject: FullSubject) => {
+    e.stopPropagation(); // Prevent card click from firing
     setEditingSubject(subject);
     setEditingSubjectName(subject.name);
   };
@@ -143,11 +145,9 @@ const SubjectManager = ({ initialSubjects, initialClasses, onAssignmentChange }:
   const handleUpdateSubject = async () => {
     if (!editingSubject || !editingSubjectName.trim()) return;
 
-    const originalSubjectName = editingSubject.name;
     const originalSubjects = [...subjects];
     const originalClasses = [...classes];
 
-    // Optimistic UI Update
     const updatedSubject = { ...editingSubject, name: editingSubjectName.trim() };
     setSubjects(subjects.map(s => s.id === editingSubject.id ? updatedSubject : s));
     setClasses(classes.map(c => ({
@@ -168,20 +168,12 @@ const SubjectManager = ({ initialSubjects, initialClasses, onAssignmentChange }:
         body: JSON.stringify({ name: editingSubjectName.trim() }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to update subject');
-      }
+      if (!response.ok) throw new Error('Failed to update subject');
       
       toast({ title: 'Success', description: 'Subject updated successfully.' });
       onAssignmentChange();
     } catch (error: any) {
-      toast({
-        title: 'Update Failed',
-        description: `Could not update subject. The change has been reverted.`,
-        variant: 'destructive',
-      });
-      // Rollback on failure
+      toast({ title: 'Update Failed', description: 'Could not update subject.', variant: 'destructive' });
       setSubjects(originalSubjects);
       setClasses(originalClasses);
     }
@@ -213,25 +205,15 @@ const SubjectManager = ({ initialSubjects, initialClasses, onAssignmentChange }:
         body: JSON.stringify({ name: optimisticSubject.name }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create subject');
-      }
+      if (!response.ok) throw new Error('Failed to create subject');
 
       const newSubject = await response.json();
       
-      setSubjects(prevSubjects => 
-        prevSubjects.map(s => s.id === tempId ? newSubject : s)
-      );
-
+      setSubjects(prevSubjects => prevSubjects.map(s => s.id === tempId ? newSubject : s));
       toast({ title: 'Success', description: `Subject "${newSubject.name}" created successfully.` });
       onAssignmentChange();
     } catch (error: any) {
-      toast({
-        title: 'Creation Failed',
-        description: error.message || 'Could not create the subject.',
-        variant: 'destructive',
-      });
+      toast({ title: 'Creation Failed', description: 'Could not create the subject.', variant: 'destructive' });
       setSubjects(prevSubjects => prevSubjects.filter(s => s.id !== tempId));
     }
   };
@@ -253,23 +235,12 @@ const SubjectManager = ({ initialSubjects, initialClasses, onAssignmentChange }:
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="subject-name" className="text-right">
-                      Name
-                    </Label>
-                    <Input
-                      id="subject-name"
-                      value={newSubjectName}
-                      onChange={(e) => setNewSubjectName(e.target.value)}
-                      className="col-span-3"
-                      placeholder="e.g., Mathematics"
-                      autoFocus
-                    />
+                    <Label htmlFor="subject-name" className="text-right">Name</Label>
+                    <Input id="subject-name" value={newSubjectName} onChange={(e) => setNewSubjectName(e.target.value)} className="col-span-3" placeholder="e.g., Mathematics" autoFocus />
                   </div>
                 </div>
                 <DialogFooter>
-                  <DialogClose asChild>
-                    <Button variant="outline" onClick={() => setNewSubjectName('')}>Cancel</Button>
-                  </DialogClose>
+                  <DialogClose asChild><Button variant="outline" onClick={() => setNewSubjectName('')}>Cancel</Button></DialogClose>
                   <Button onClick={handleCreateSubject}>Create Subject</Button>
                 </DialogFooter>
               </DialogContent>
@@ -285,6 +256,7 @@ const SubjectManager = ({ initialSubjects, initialClasses, onAssignmentChange }:
                     onSelect={setSelectedSubject}
                     onEdit={handleEditSubject}
                     assignedClassCount={assignedCounts.get(subject.id) || 0}
+                    isSelected={selectedSubject?.id === subject.id}
                   />
                 ))
               ) : (
@@ -295,7 +267,7 @@ const SubjectManager = ({ initialSubjects, initialClasses, onAssignmentChange }:
         </Card>
       </div>
 
-      {/* Relationship Tree Panel */}
+      {/* Relationship Panel */}
       <div className="md:col-span-2 h-full">
         <AnimatePresence mode="wait">
           {selectedSubject ? (
@@ -307,15 +279,7 @@ const SubjectManager = ({ initialSubjects, initialClasses, onAssignmentChange }:
               onClose={() => setSelectedSubject(null)}
             />
           ) : (
-             <motion.div
-                key="placeholder"
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="h-full flex items-center justify-center bg-muted/40 rounded-lg"
-             >
-                <p className="text-muted-foreground text-lg">Select a subject to manage its class assignments.</p>
-             </motion.div>
+            <ClassSubjectOverview classes={classes} />
           )}
         </AnimatePresence>
       </div>
@@ -323,27 +287,15 @@ const SubjectManager = ({ initialSubjects, initialClasses, onAssignmentChange }:
       {/* Edit Subject Dialog */}
       <Dialog open={!!editingSubject} onOpenChange={(isOpen) => !isOpen && setEditingSubject(null)}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Subject</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>Edit Subject</DialogTitle></DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="edit-subject-name" className="text-right">
-                Name
-              </Label>
-              <Input
-                id="edit-subject-name"
-                value={editingSubjectName}
-                onChange={(e) => setEditingSubjectName(e.target.value)}
-                className="col-span-3"
-                autoFocus
-              />
+              <Label htmlFor="edit-subject-name" className="text-right">Name</Label>
+              <Input id="edit-subject-name" value={editingSubjectName} onChange={(e) => setEditingSubjectName(e.target.value)} className="col-span-3" autoFocus />
             </div>
           </div>
           <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="outline" onClick={() => setEditingSubject(null)}>Cancel</Button>
-            </DialogClose>
+            <DialogClose asChild><Button variant="outline" onClick={() => setEditingSubject(null)}>Cancel</Button></DialogClose>
             <Button onClick={handleUpdateSubject}>Save Changes</Button>
           </DialogFooter>
         </DialogContent>
