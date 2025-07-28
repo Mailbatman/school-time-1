@@ -21,7 +21,7 @@ import { SubjectRelationshipTree } from './SubjectRelationshipTree';
 
 // Define extended types to include relations
 type FullSubject = Subject;
-type FullClass = Class &amp; { classSubjects: (ClassSubject &amp; { subject: FullSubject })[] };
+type FullClass = Class & { classSubjects: (ClassSubject & { subject: FullSubject })[] };
 
 // Subject Card Item
 const SubjectCard = React.memo(({ subject, onSelect, onEdit, assignedClassCount }: { subject: FullSubject; onSelect: (subject: FullSubject) => void; onEdit: (subject: FullSubject) => void; assignedClassCount: number; }) => {

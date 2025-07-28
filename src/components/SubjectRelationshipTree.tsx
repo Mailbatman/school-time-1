@@ -10,7 +10,7 @@ import { X } from 'lucide-react';
 
 // Define extended types to include relations
 type FullSubject = Subject;
-type FullClass = Class &amp; { classSubjects: (ClassSubject &amp; { subject: FullSubject })[] };
+type FullClass = Class & { classSubjects: (ClassSubject & { subject: FullSubject })[] };
 
 interface SubjectRelationshipTreeProps {
   subject: FullSubject;
