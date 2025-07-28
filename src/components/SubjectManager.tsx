@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { DndContext, useDraggable, useDroppable, DragEndEvent } from '@dnd-kit/core';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from '@/components/ui/use-toast';
 import { Class, Subject, ClassSubject } from '@prisma/client';
@@ -17,137 +16,36 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Pencil, X, LibrarySquare } from 'lucide-react';
-import { Checkbox } from '@/components/ui/checkbox';
-
+import { Pencil, ChevronRight } from 'lucide-react';
+import { SubjectRelationshipTree } from './SubjectRelationshipTree';
 
 // Define extended types to include relations
 type FullSubject = Subject;
-type FullClass = Class & { classSubjects: (ClassSubject & { subject: FullSubject })[] };
+type FullClass = Class &amp; { classSubjects: (ClassSubject &amp; { subject: FullSubject })[] };
 
-// Group classes by grade level
-const groupClassesByGrade = (classes: FullClass[]) => {
-  return classes.reduce((acc, currentClass) => {
-    const grade = currentClass.gradeLevel || 'Ungraded';
-    if (!acc[grade]) {
-      acc[grade] = [];
-    }
-    acc[grade].push(currentClass);
-    return acc;
-  }, {} as Record<string, FullClass[]>);
-};
-
-// Draggable Subject Item
-const DraggableSubject = React.memo(({ subject, onEdit, onBulkAssign }: { subject: FullSubject; onEdit: (subject: FullSubject) => void; onBulkAssign: (subject: FullSubject) => void; }) => {
-  const { attributes, listeners, setNodeRef, transform } = useDraggable({
-    id: `subject-${subject.id}`,
-    data: { type: 'subject', subject },
-  });
-
-  const style = transform ? {
-    transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
-    zIndex: 100,
-    cursor: 'grabbing',
-  } : undefined;
-
+// Subject Card Item
+const SubjectCard = React.memo(({ subject, onSelect, onEdit, assignedClassCount }: { subject: FullSubject; onSelect: (subject: FullSubject) => void; onEdit: (subject: FullSubject) => void; assignedClassCount: number; }) => {
   return (
-    <div ref={setNodeRef} style={style}>
-      <Card className="mb-2 group">
-        <CardContent className="p-3 flex items-center justify-between">
-          <div {...listeners} {...attributes} className="flex-grow cursor-grab active:cursor-grabbing">
-            <p className="font-semibold">{subject.name}</p>
-          </div>
-          <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
-            <Button variant="ghost" size="icon" onClick={() => onBulkAssign(subject)} aria-label="Assign to multiple classes">
-              <LibrarySquare className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={() => onEdit(subject)} aria-label="Edit subject">
-              <Pencil className="h-4 w-4" />
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+    &lt;Card className="mb-2 group transition-shadow hover:shadow-md"&gt;
+      &lt;CardContent className="p-3 flex items-center justify-between"&gt;
+        &lt;div onClick={() => onSelect(subject)} className="flex-grow cursor-pointer flex items-center gap-4"&gt;
+          &lt;div&gt;
+            &lt;p className="font-semibold"&gt;{subject.name}&lt;/p&gt;
+            &lt;p className="text-sm text-muted-foreground"&gt;{assignedClassCount} class(es) assigned&lt;/p&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
+        &lt;div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity"&gt;
+          &lt;Button variant="ghost" size="icon" onClick={() => onEdit(subject)} aria-label="Edit subject"&gt;
+            &lt;Pencil className="h-4 w-4" /&gt;
+          &lt;/Button&gt;
+          &lt;Button variant="ghost" size="icon" onClick={() => onSelect(subject)} aria-label="Manage assignments"&gt;
+            &lt;ChevronRight className="h-4 w-4" /&gt;
+          &lt;/Button&gt;
+        &lt;/div&gt;
+      &lt;/CardContent&gt;
+    &lt;/Card&gt;
   );
 });
-
-// Droppable Class Item
-const DroppableClass = React.memo(({ classItem, onUnassign }: { classItem: FullClass; onUnassign: (classSubjectId: string, classId: string) => void; }) => {
-  const { isOver, setNodeRef } = useDroppable({
-    id: `class-${classItem.id}`,
-    data: { type: 'class', classItem },
-  });
-
-  return (
-    <div ref={setNodeRef} className={`p-2 rounded-lg transition-colors ${isOver ? 'bg-primary/20' : ''}`}>
-      <Card>
-        <CardHeader className="p-3">
-          <CardTitle className="text-base">{classItem.name}</CardTitle>
-        </CardHeader>
-        <CardContent className="p-3 min-h-[50px]">
-          <div className="flex flex-wrap gap-1">
-            {classItem.classSubjects.map(cs => (
-              <Badge key={cs.id} variant="secondary" className="flex items-center gap-1.5 pr-1.5">
-                {cs.subject.name}
-                <button
-                  onClick={() => onUnassign(cs.id, classItem.id)}
-                  className="rounded-full w-4 h-4 flex items-center justify-center text-secondary-foreground/60 hover:text-secondary-foreground hover:bg-white/20 transition-colors"
-                  aria-label={`Remove ${cs.subject.name}`}
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </Badge>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-});
-
-// Droppable Grade Group
-const DroppableGrade = React.memo(({ grade, classes, onUnassign }: { grade: string; classes: FullClass[]; onUnassign: (classSubjectId: string, classId: string) => void; }) => {
-    const { isOver, setNodeRef } = useDroppable({
-        id: `grade-${grade}`,
-        data: { type: 'grade', classes },
-    });
-
-    const gradeSubjects = useMemo(() => {
-        const allClassSubjects = classes.flatMap(c => c.classSubjects);
-        const uniqueSubjects = new Map<string, FullSubject>();
-        allClassSubjects.forEach(cs => {
-            if (cs.subject && !uniqueSubjects.has(cs.subject.id)) {
-                uniqueSubjects.set(cs.subject.id, cs.subject);
-            }
-        });
-        return Array.from(uniqueSubjects.values()).sort((a, b) => a.name.localeCompare(b.name));
-    }, [classes]);
-
-    return (
-        <div ref={setNodeRef} className={`p-4 rounded-lg transition-colors ${isOver ? 'bg-blue-100 dark:bg-blue-900/50' : 'bg-muted/40'}`}>
-            <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-bold text-primary">{grade}</h3>
-                <div className="flex flex-wrap gap-1 justify-end max-w-[70%]">
-                    {gradeSubjects.map(subject => (
-                        <Badge key={subject.id} variant="outline">{subject.name}</Badge>
-                    ))}
-                </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {classes.map(classItem => (
-                    <DroppableClass key={classItem.id} classItem={classItem} onUnassign={onUnassign} />
-                ))}
-            </div>
-        </div>
-    );
-});
-
-
-interface SubjectManagerProps {
-  initialSubjects: FullSubject[];
-  initialClasses: FullClass[];
-  onAssignmentChange: () => void; // Callback to refresh data on the parent page
-}
 
 interface SubjectManagerProps {
   initialSubjects: FullSubject[];
@@ -156,115 +54,84 @@ interface SubjectManagerProps {
 }
 
 const SubjectManager = ({ initialSubjects, initialClasses, onAssignmentChange }: SubjectManagerProps) => {
-  const [subjects, setSubjects] = useState<FullSubject[]>(initialSubjects);
-  const [classes, setClasses] = useState<FullClass[]>(initialClasses);
+  const [subjects, setSubjects] = useState&lt;FullSubject[]&gt;(initialSubjects);
+  const [classes, setClasses] = useState&lt;FullClass[]&gt;(initialClasses);
   const [newSubjectName, setNewSubjectName] = useState('');
   const [isAddSubjectDialogOpen, setIsAddSubjectDialogOpen] = useState(false);
-  const [editingSubject, setEditingSubject] = useState<FullSubject | null>(null);
+  const [editingSubject, setEditingSubject] = useState&lt;FullSubject | null&gt;(null);
   const [editingSubjectName, setEditingSubjectName] = useState('');
-  const [bulkAssignSubject, setBulkAssignSubject] = useState<FullSubject | null>(null);
-  const [selectedClassIds, setSelectedClassIds] = useState<Set<string>>(new Set());
-
+  const [selectedSubject, setSelectedSubject] = useState&lt;FullSubject | null&gt;(null);
 
   useEffect(() => {
     setSubjects(initialSubjects);
     setClasses(initialClasses);
   }, [initialSubjects, initialClasses]);
 
-  const groupedClasses = useMemo(() => groupClassesByGrade(classes), [classes]);
-
-  const handleOpenBulkAssign = (subject: FullSubject) => {
-    setSelectedClassIds(new Set());
-    setBulkAssignSubject(subject);
-  };
-
-  const handleBulkAssign = async () => {
-    if (!bulkAssignSubject || selectedClassIds.size === 0) return;
-
-    const targetClassIds = Array.from(selectedClassIds);
-    
-    // Filter out classes that already have the subject
-    const finalTargetClassIds = targetClassIds.filter(classId => {
-        const classItem = classes.find(c => c.id === classId);
-        return !classItem?.classSubjects.some(cs => cs.subjectId === bulkAssignSubject.id);
+  const assignedCounts = useMemo(() => {
+    const counts = new Map&lt;string, number&gt;();
+    classes.forEach(c => {
+      c.classSubjects.forEach(cs => {
+        counts.set(cs.subjectId, (counts.get(cs.subjectId) || 0) + 1);
+      });
     });
+    return counts;
+  }, [classes]);
 
-    if (finalTargetClassIds.length === 0) {
-        toast({ title: 'Already Assigned', description: `This subject is already assigned to all selected classes.` });
-        setBulkAssignSubject(null);
-        return;
-    }
+  const handleToggleAssignment = async (classId: string, shouldBeAssigned: boolean) => {
+    if (!selectedSubject) return;
 
-    const originalClasses = [...classes];
+    const originalClasses = JSON.parse(JSON.stringify(classes)); // Deep copy for rollback
+    const subjectId = selectedSubject.id;
 
     // Optimistic UI Update
-    const newOptimisticClasses = originalClasses.map(c => {
-      if (finalTargetClassIds.includes(c.id)) {
-        const newClassSubject: ClassSubject & { subject: FullSubject } = {
-          id: `temp-${bulkAssignSubject.id}-${c.id}-${Date.now()}`,
-          classId: c.id,
-          subjectId: bulkAssignSubject.id,
-          teacherId: null,
-          subject: bulkAssignSubject,
-        };
-        return { ...c, classSubjects: [...c.classSubjects, newClassSubject] };
+    setClasses(prevClasses => prevClasses.map(c => {
+      if (c.id === classId) {
+        if (shouldBeAssigned) {
+          const newClassSubject: ClassSubject &amp; { subject: FullSubject } = {
+            id: `temp-${subjectId}-${c.id}-${Date.now()}`,
+            classId: c.id,
+            subjectId: subjectId,
+            teacherId: null,
+            subject: selectedSubject,
+          };
+          return { ...c, classSubjects: [...c.classSubjects, newClassSubject] };
+        } else {
+          return { ...c, classSubjects: c.classSubjects.filter(cs => cs.subjectId !== subjectId) };
+        }
       }
       return c;
-    });
-    setClasses(newOptimisticClasses);
-    setBulkAssignSubject(null);
-
-    try {
-        const response = await fetch('/api/subjects/assign', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ subjectId: bulkAssignSubject.id, classIds: finalTargetClassIds }),
-        });
-
-        if (!response.ok) throw new Error('Failed to assign subject');
-
-        toast({ title: 'Success', description: `Assigned "${bulkAssignSubject.name}" to ${finalTargetClassIds.length} class(es).` });
-    } catch (error) {
-        toast({ title: 'Assignment Failed', description: 'Could not assign subject, changes were reverted.', variant: 'destructive' });
-        setClasses(originalClasses);
-    }
-  };
-
-  const handleUnassignSubject = async (classSubjectId: string, classId: string) => {
-    const originalClasses = [...classes];
-
-    // Optimistic UI update
-    setClasses(prevClasses => prevClasses.map(c => {
-        if (c.id === classId) {
-            return {
-                ...c,
-                classSubjects: c.classSubjects.filter(cs => cs.id !== classSubjectId)
-            };
-        }
-        return c;
     }));
 
     try {
+      if (shouldBeAssigned) {
+        const response = await fetch('/api/subjects/assign', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ subjectId, classIds: [classId] }),
+        });
+        if (!response.ok) throw new Error('Failed to assign subject');
+        toast({ title: 'Success', description: `Assigned "${selectedSubject.name}" to class.` });
+      } else {
+        const classSubject = originalClasses.find((c: FullClass) => c.id === classId)?.classSubjects.find((cs: any) => cs.subjectId === subjectId);
+        if (!classSubject || classSubject.id.startsWith('temp-')) {
+            // If it's a temp one, we just remove it from state, no API call needed
+            toast({ title: 'Success', description: `Unassigned "${selectedSubject.name}" from class.` });
+            onAssignmentChange();
+            return;
+        };
+        
         const response = await fetch(`/api/subjects/unassign`, {
-            method: 'POST', // Using POST to have a body, but acting as DELETE
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ classSubjectId }),
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ classSubjectId: classSubject.id }),
         });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Failed to unassign subject');
-        }
-
-        toast({ title: 'Success', description: 'Subject unassigned successfully.' });
-
-    } catch (error: any) {
-        toast({
-            title: 'Unassignment Failed',
-            description: `Could not unassign subject. The change has been reverted.`,
-            variant: 'destructive',
-        });
-        setClasses(originalClasses); // Rollback
+        if (!response.ok) throw new Error('Failed to unassign subject');
+        toast({ title: 'Success', description: `Unassigned "${selectedSubject.name}" from class.` });
+      }
+      onAssignmentChange(); // Refresh from server to get real IDs
+    } catch (error) {
+      toast({ title: 'Update Failed', description: 'Could not update assignment, changes were reverted.', variant: 'destructive' });
+      setClasses(originalClasses); // Rollback
     }
   };
 
@@ -307,7 +174,7 @@ const SubjectManager = ({ initialSubjects, initialClasses, onAssignmentChange }:
       }
       
       toast({ title: 'Success', description: 'Subject updated successfully.' });
-      // No need to refresh from server due to optimistic update
+      onAssignmentChange();
     } catch (error: any) {
       toast({
         title: 'Update Failed',
@@ -326,12 +193,11 @@ const SubjectManager = ({ initialSubjects, initialClasses, onAssignmentChange }:
       return;
     }
 
-    // Optimistically add the subject to the UI
     const tempId = `temp-${Date.now()}`;
     const optimisticSubject: FullSubject = {
       id: tempId,
       name: newSubjectName.trim(),
-      schoolId: classes[0]?.schoolId, // Assuming all classes belong to the same school
+      schoolId: classes[0]?.schoolId,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -354,255 +220,135 @@ const SubjectManager = ({ initialSubjects, initialClasses, onAssignmentChange }:
 
       const newSubject = await response.json();
       
-      // Replace optimistic subject with the real one from the server
       setSubjects(prevSubjects => 
         prevSubjects.map(s => s.id === tempId ? newSubject : s)
       );
 
       toast({ title: 'Success', description: `Subject "${newSubject.name}" created successfully.` });
-
+      onAssignmentChange();
     } catch (error: any) {
       toast({
         title: 'Creation Failed',
         description: error.message || 'Could not create the subject.',
         variant: 'destructive',
       });
-      // Rollback: remove the optimistic subject
       setSubjects(prevSubjects => prevSubjects.filter(s => s.id !== tempId));
     }
   };
 
-  const handleDragEnd = async (event: DragEndEvent) => {
-    const { over, active } = event;
-    if (!over || !active) return;
-
-    const subject = active.data.current?.subject as FullSubject;
-    const isGradeDrop = over.data.current?.type === 'grade';
-    const isClassDrop = over.data.current?.type === 'class';
-
-    if (!subject || (!isClassDrop && !isGradeDrop)) return;
-
-    let targetClassIds: string[] = [];
-
-    if (isClassDrop) {
-        const classItem = over.data.current?.classItem as FullClass;
-        if (classItem.classSubjects.some(cs => cs.subjectId === subject.id)) {
-            toast({ title: 'Already Assigned', description: `"${subject.name}" is already assigned to "${classItem.name}".` });
-            return;
-        }
-        targetClassIds.push(classItem.id);
-    } else if (isGradeDrop) {
-        const gradeClasses = over.data.current?.classes as FullClass[];
-        targetClassIds = gradeClasses.map(c => c.id).filter(classId => {
-            const classItem = classes.find(c => c.id === classId);
-            return !classItem?.classSubjects.some(cs => cs.subjectId === subject.id);
-        });
-
-        if (targetClassIds.length === 0) {
-            toast({ title: 'Already Assigned', description: `"${subject.name}" is already assigned to all classes in this grade.` });
-            return;
-        }
-    }
-
-    if (targetClassIds.length === 0) return;
-
-    // Store original state for potential rollback
-    const originalClasses = classes;
-
-    // Perform optimistic UI update immediately
-    const newOptimisticClasses = originalClasses.map(c => {
-      if (targetClassIds.includes(c.id)) {
-        const newClassSubject: ClassSubject & { subject: FullSubject } = {
-          id: `temp-${subject.id}-${c.id}-${Date.now()}`, // More robust temp key
-          classId: c.id,
-          subjectId: subject.id,
-          teacherId: null,
-          subject: subject,
-        };
-        return {
-          ...c,
-          classSubjects: [...c.classSubjects, newClassSubject],
-        };
-      }
-      return c;
-    });
-    setClasses(newOptimisticClasses);
-
-    // Perform the API call in the background
-    try {
-      const response = await fetch('/api/subjects/assign', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subjectId: subject.id, classIds: targetClassIds }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to assign subject');
-      }
-
-      // On success, the optimistic UI is correct. We can show a success toast.
-      toast({ title: 'Success', description: `Assigned "${subject.name}" successfully.` });
-      
-      // The UI is now updated optimistically. A background refresh is removed to prevent hydration errors
-      // and ensure a smoother experience. The data will be fully synced on the next page load.
-      // onAssignmentChange();
-
-    } catch (error: any) {
-      // If the API call fails, revert the UI change and show an error message.
-      toast({
-        title: 'Assignment Failed',
-        description: `Could not assign "${subject.name}". The change has been reverted.`,
-        variant: 'destructive',
-      });
-      setClasses(originalClasses); // Revert to the original state
-    }
-  };
-
   return (
-    <DndContext onDragEnd={handleDragEnd}>
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 p-4">
-        {/* Subjects Panel */}
-        <div className="lg:col-span-1">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pr-4">
-              <CardTitle>Subjects</CardTitle>
-              <Dialog open={isAddSubjectDialogOpen} onOpenChange={setIsAddSubjectDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button size="sm">Add Subject</Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Add New Subject</DialogTitle>
-                  </DialogHeader>
-                  <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="subject-name" className="text-right">
-                        Name
-                      </Label>
-                      <Input
-                        id="subject-name"
-                        value={newSubjectName}
-                        onChange={(e) => setNewSubjectName(e.target.value)}
-                        className="col-span-3"
-                        placeholder="e.g., Mathematics"
-                        autoFocus
-                      />
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <DialogClose asChild>
-                      <Button variant="outline" onClick={() => setNewSubjectName('')}>Cancel</Button>
-                    </DialogClose>
-                    <Button onClick={handleCreateSubject}>Create Subject</Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            </CardHeader>
-            <CardContent>
-              <ScrollArea className="h-[60vh] pr-4">
-                {subjects.length > 0 ? (
-                  subjects.map(subject => <DraggableSubject key={subject.id} subject={subject} onEdit={handleEditSubject} onBulkAssign={handleOpenBulkAssign} />)
-                ) : (
-                  <p>No subjects found. Please create subjects first.</p>
-                )}
-              </ScrollArea>
-            </CardContent>
-          </Card>
-        </div>
+    &lt;div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 h-[80vh]"&gt;
+      {/* Subjects Panel */}
+      &lt;div className="md:col-span-1 h-full"&gt;
+        &lt;Card className="h-full flex flex-col"&gt;
+          &lt;CardHeader className="flex flex-row items-center justify-between pr-4"&gt;
+            &lt;CardTitle&gt;Subjects&lt;/CardTitle&gt;
+            &lt;Dialog open={isAddSubjectDialogOpen} onOpenChange={setIsAddSubjectDialogOpen}&gt;
+              &lt;DialogTrigger asChild&gt;
+                &lt;Button size="sm"&gt;Add Subject&lt;/Button&gt;
+              &lt;/DialogTrigger&gt;
+              &lt;DialogContent&gt;
+                &lt;DialogHeader&gt;
+                  &lt;DialogTitle&gt;Add New Subject&lt;/DialogTitle&gt;
+                &lt;/DialogHeader&gt;
+                &lt;div className="grid gap-4 py-4"&gt;
+                  &lt;div className="grid grid-cols-4 items-center gap-4"&gt;
+                    &lt;Label htmlFor="subject-name" className="text-right"&gt;
+                      Name
+                    &lt;/Label&gt;
+                    &lt;Input
+                      id="subject-name"
+                      value={newSubjectName}
+                      onChange={(e) => setNewSubjectName(e.target.value)}
+                      className="col-span-3"
+                      placeholder="e.g., Mathematics"
+                      autoFocus
+                    /&gt;
+                  &lt;/div&gt;
+                &lt;/div&gt;
+                &lt;DialogFooter&gt;
+                  &lt;DialogClose asChild&gt;
+                    &lt;Button variant="outline" onClick={() => setNewSubjectName('')}&gt;Cancel&lt;/Button&gt;
+                  &lt;/DialogClose&gt;
+                  &lt;Button onClick={handleCreateSubject}&gt;Create Subject&lt;/Button&gt;
+                &lt;/DialogFooter&gt;
+              &lt;/DialogContent&gt;
+            &lt;/Dialog&gt;
+          &lt;/CardHeader&gt;
+          &lt;CardContent className="flex-grow overflow-hidden"&gt;
+            &lt;ScrollArea className="h-full pr-4"&gt;
+              {subjects.length > 0 ? (
+                subjects.map(subject => (
+                  &lt;SubjectCard
+                    key={subject.id}
+                    subject={subject}
+                    onSelect={setSelectedSubject}
+                    onEdit={handleEditSubject}
+                    assignedClassCount={assignedCounts.get(subject.id) || 0}
+                  /&gt;
+                ))
+              ) : (
+                &lt;p className="text-center text-muted-foreground pt-10"&gt;No subjects found. Please create one.&lt;/p&gt;
+              )}
+            &lt;/ScrollArea&gt;
+          &lt;/CardContent&gt;
+        &lt;/Card&gt;
+      &lt;/div&gt;
 
-        {/* Classes Panel */}
-        <div className="lg:col-span-3">
-            <ScrollArea className="h-[75vh] p-4">
-                <div className="space-y-6">
-                    {Object.keys(groupedClasses).sort().map(grade => (
-                        <DroppableGrade key={grade} grade={grade} classes={groupedClasses[grade]} onUnassign={handleUnassignSubject} />
-                    ))}
-                </div>
-            </ScrollArea>
-        </div>
-      </div>
+      {/* Relationship Tree Panel */}
+      &lt;div className="md:col-span-2 h-full"&gt;
+        &lt;AnimatePresence mode="wait"&gt;
+          {selectedSubject ? (
+            &lt;SubjectRelationshipTree
+              key={selectedSubject.id}
+              subject={selectedSubject}
+              allClasses={classes}
+              onToggleAssignment={handleToggleAssignment}
+              onClose={() => setSelectedSubject(null)}
+            /&gt;
+          ) : (
+             &lt;motion.div
+                key="placeholder"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="h-full flex items-center justify-center bg-muted/40 rounded-lg"
+             &gt;
+                &lt;p className="text-muted-foreground text-lg"&gt;Select a subject to manage its class assignments.&lt;/p&gt;
+             &lt;/motion.div&gt;
+          )}
+        &lt;/AnimatePresence&gt;
+      &lt;/div&gt;
+
       {/* Edit Subject Dialog */}
-      <Dialog open={!!editingSubject} onOpenChange={(isOpen) => !isOpen && setEditingSubject(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Subject</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="edit-subject-name" className="text-right">
+      &lt;Dialog open={!!editingSubject} onOpenChange={(isOpen) => !isOpen && setEditingSubject(null)}&gt;
+        &lt;DialogContent&gt;
+          &lt;DialogHeader&gt;
+            &lt;DialogTitle&gt;Edit Subject&lt;/DialogTitle&gt;
+          &lt;/DialogHeader&gt;
+          &lt;div className="grid gap-4 py-4"&gt;
+            &lt;div className="grid grid-cols-4 items-center gap-4"&gt;
+              &lt;Label htmlFor="edit-subject-name" className="text-right"&gt;
                 Name
-              </Label>
-              <Input
+              &lt;/Label&gt;
+              &lt;Input
                 id="edit-subject-name"
                 value={editingSubjectName}
                 onChange={(e) => setEditingSubjectName(e.target.value)}
                 className="col-span-3"
                 autoFocus
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="outline" onClick={() => setEditingSubject(null)}>Cancel</Button>
-            </DialogClose>
-            <Button onClick={handleUpdateSubject}>Save Changes</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Bulk Assign Dialog */}
-      <Dialog open={!!bulkAssignSubject} onOpenChange={(isOpen) => !isOpen && setBulkAssignSubject(null)}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Assign "{bulkAssignSubject?.name}" to Classes</DialogTitle>
-          </DialogHeader>
-          <ScrollArea className="max-h-[60vh] my-4 pr-6">
-            <div className="space-y-4">
-              {Object.entries(groupedClasses).map(([grade, gradeClasses]) => (
-                <div key={grade}>
-                  <h4 className="font-semibold text-lg mb-2 sticky top-0 bg-background py-1">{grade}</h4>
-                  <div className="space-y-2">
-                    {gradeClasses.map(classItem => {
-                      const isAssigned = classItem.classSubjects.some(cs => cs.subjectId === bulkAssignSubject?.id);
-                      return (
-                        <div key={classItem.id} className="flex items-center space-x-2 p-2 rounded-md hover:bg-muted">
-                          <Checkbox
-                            id={`class-${classItem.id}`}
-                            checked={selectedClassIds.has(classItem.id) || isAssigned}
-                            disabled={isAssigned}
-                            onCheckedChange={(checked) => {
-                              setSelectedClassIds(prev => {
-                                const newSet = new Set(prev);
-                                if (checked) {
-                                  newSet.add(classItem.id);
-                                } else {
-                                  newSet.delete(classItem.id);
-                                }
-                                return newSet;
-                              });
-                            }}
-                          />
-                          <Label htmlFor={`class-${classItem.id}`} className={`flex-grow ${isAssigned ? 'text-muted-foreground' : ''}`}>
-                            {classItem.name} {isAssigned && <span className="text-xs">(Already assigned)</span>}
-                          </Label>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </ScrollArea>
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="outline" onClick={() => setBulkAssignSubject(null)}>Cancel</Button>
-            </DialogClose>
-            <Button onClick={handleBulkAssign}>Assign to Selected</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </DndContext>
+              /&gt;
+            &lt;/div&gt;
+          &lt;/div&gt;
+          &lt;DialogFooter&gt;
+            &lt;DialogClose asChild&gt;
+              &lt;Button variant="outline" onClick={() => setEditingSubject(null)}&gt;Cancel&lt;/Button&gt;
+            &lt;/DialogClose&gt;
+            &lt;Button onClick={handleUpdateSubject}&gt;Save Changes&lt;/Button&gt;
+          &lt;/DialogFooter&gt;
+        &lt;/DialogContent&gt;
+      &lt;/Dialog&gt;
+    &lt;/div&gt;
   );
 };
 
