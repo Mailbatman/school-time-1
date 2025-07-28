@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Pencil, ChevronRight } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { SubjectRelationshipTree } from './SubjectRelationshipTree';
 import { ClassSubjectOverview } from './ClassSubjectOverview';
 
@@ -25,7 +25,7 @@ type FullSubject = Subject;
 type FullClass = Class & { classSubjects: (ClassSubject & { subject: FullSubject })[] };
 
 // Subject Card Item
-const SubjectCard = React.memo(({ subject, onSelect, onEdit, assignedClassCount, isSelected }: { subject: FullSubject; onSelect: (subject: FullSubject) => void; onEdit: (e: React.MouseEvent, subject: FullSubject) => void; assignedClassCount: number; isSelected: boolean; }) => {
+const SubjectCard = React.memo(({ subject, onSelect, assignedClassCount, isSelected }: { subject: FullSubject; onSelect: (subject: FullSubject) => void; assignedClassCount: number; isSelected: boolean; }) => {
   return (
     <Card 
       onClick={() => onSelect(subject)}
@@ -39,9 +39,6 @@ const SubjectCard = React.memo(({ subject, onSelect, onEdit, assignedClassCount,
           </div>
         </div>
         <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
-          <Button variant="ghost" size="icon" onClick={(e) => onEdit(e, subject)} aria-label="Edit subject">
-            <Pencil className="h-4 w-4" />
-          </Button>
           <ChevronRight className="h-4 w-4 text-muted-foreground" />
         </div>
       </CardContent>
@@ -60,8 +57,6 @@ const SubjectManager = ({ initialSubjects, initialClasses, onAssignmentChange }:
   const [classes, setClasses] = useState<FullClass[]>(initialClasses);
   const [newSubjectName, setNewSubjectName] = useState('');
   const [isAddSubjectDialogOpen, setIsAddSubjectDialogOpen] = useState(false);
-  const [editingSubject, setEditingSubject] = useState<FullSubject | null>(null);
-  const [editingSubjectName, setEditingSubjectName] = useState('');
   const [selectedSubject, setSelectedSubject] = useState<FullSubject | null>(null);
 
   useEffect(() => {
@@ -136,46 +131,48 @@ const SubjectManager = ({ initialSubjects, initialClasses, onAssignmentChange }:
     }
   };
 
-  const handleEditSubject = (e: React.MouseEvent, subject: FullSubject) => {
-    e.stopPropagation(); // Prevent card click from firing
-    setEditingSubject(subject);
-    setEditingSubjectName(subject.name);
-  };
-
-  const handleUpdateSubject = async () => {
-    if (!editingSubject || !editingSubjectName.trim()) return;
+  const handleUpdateSubject = async (subjectId: string, newName: string) => {
+    const subjectToUpdate = subjects.find(s => s.id === subjectId);
+    if (!subjectToUpdate || !newName.trim()) return;
 
     const originalSubjects = [...subjects];
-    const originalClasses = [...classes];
+    const originalClasses = JSON.parse(JSON.stringify(classes));
 
-    const updatedSubject = { ...editingSubject, name: editingSubjectName.trim() };
-    setSubjects(subjects.map(s => s.id === editingSubject.id ? updatedSubject : s));
-    setClasses(classes.map(c => ({
+    const updatedSubject = { ...subjectToUpdate, name: newName.trim() };
+    
+    // Optimistic UI Update
+    setSubjects(prev => prev.map(s => s.id === subjectId ? updatedSubject : s));
+    setClasses(prev => prev.map(c => ({
       ...c,
       classSubjects: c.classSubjects.map(cs => 
-        cs.subjectId === editingSubject.id 
-        ? { ...cs, subject: { ...cs.subject, name: editingSubjectName.trim() } } 
+        cs.subjectId === subjectId 
+        ? { ...cs, subject: { ...cs.subject, name: newName.trim() } } 
         : cs
       ),
     })));
-    setEditingSubject(null);
-    setEditingSubjectName('');
+    if (selectedSubject?.id === subjectId) {
+      setSelectedSubject(updatedSubject);
+    }
 
     try {
-      const response = await fetch(`/api/subjects/${editingSubject.id}`, {
+      const response = await fetch(`/api/subjects/${subjectId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: editingSubjectName.trim() }),
+        body: JSON.stringify({ name: newName.trim() }),
       });
 
       if (!response.ok) throw new Error('Failed to update subject');
       
       toast({ title: 'Success', description: 'Subject updated successfully.' });
-      onAssignmentChange();
+      onAssignmentChange(); // Re-fetch data to ensure consistency
     } catch (error: any) {
       toast({ title: 'Update Failed', description: 'Could not update subject.', variant: 'destructive' });
+      // Rollback
       setSubjects(originalSubjects);
       setClasses(originalClasses);
+      if (selectedSubject?.id === subjectId) {
+        setSelectedSubject(originalSubjects.find(s => s.id === subjectId) || null);
+      }
     }
   };
 
@@ -254,7 +251,6 @@ const SubjectManager = ({ initialSubjects, initialClasses, onAssignmentChange }:
                     key={subject.id}
                     subject={subject}
                     onSelect={setSelectedSubject}
-                    onEdit={handleEditSubject}
                     assignedClassCount={assignedCounts.get(subject.id) || 0}
                     isSelected={selectedSubject?.id === subject.id}
                   />
@@ -276,6 +272,7 @@ const SubjectManager = ({ initialSubjects, initialClasses, onAssignmentChange }:
               subject={selectedSubject}
               allClasses={classes}
               onToggleAssignment={handleToggleAssignment}
+              onUpdateSubject={handleUpdateSubject}
               onClose={() => setSelectedSubject(null)}
             />
           ) : (
@@ -283,23 +280,6 @@ const SubjectManager = ({ initialSubjects, initialClasses, onAssignmentChange }:
           )}
         </AnimatePresence>
       </div>
-
-      {/* Edit Subject Dialog */}
-      <Dialog open={!!editingSubject} onOpenChange={(isOpen) => !isOpen && setEditingSubject(null)}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Edit Subject</DialogTitle></DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="edit-subject-name" className="text-right">Name</Label>
-              <Input id="edit-subject-name" value={editingSubjectName} onChange={(e) => setEditingSubjectName(e.target.value)} className="col-span-3" autoFocus />
-            </div>
-          </div>
-          <DialogFooter>
-            <DialogClose asChild><Button variant="outline" onClick={() => setEditingSubject(null)}>Cancel</Button></DialogClose>
-            <Button onClick={handleUpdateSubject}>Save Changes</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };
