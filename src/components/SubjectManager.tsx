@@ -17,7 +17,9 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Pencil, X } from 'lucide-react';
+import { Pencil, X, LibrarySquare } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+
 
 // Define extended types to include relations
 type FullSubject = Subject;
@@ -36,7 +38,7 @@ const groupClassesByGrade = (classes: FullClass[]) => {
 };
 
 // Draggable Subject Item
-const DraggableSubject = React.memo(({ subject, onEdit }: { subject: FullSubject; onEdit: (subject: FullSubject) => void; }) => {
+const DraggableSubject = React.memo(({ subject, onEdit, onBulkAssign }: { subject: FullSubject; onEdit: (subject: FullSubject) => void; onBulkAssign: (subject: FullSubject) => void; }) => {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({
     id: `subject-${subject.id}`,
     data: { type: 'subject', subject },
@@ -55,9 +57,14 @@ const DraggableSubject = React.memo(({ subject, onEdit }: { subject: FullSubject
           <div {...listeners} {...attributes} className="flex-grow cursor-grab active:cursor-grabbing">
             <p className="font-semibold">{subject.name}</p>
           </div>
-          <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => onEdit(subject)}>
-            <Pencil className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+            <Button variant="ghost" size="icon" onClick={() => onBulkAssign(subject)} aria-label="Assign to multiple classes">
+              <LibrarySquare className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={() => onEdit(subject)} aria-label="Edit subject">
+              <Pencil className="h-4 w-4" />
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>
@@ -155,6 +162,9 @@ const SubjectManager = ({ initialSubjects, initialClasses, onAssignmentChange }:
   const [isAddSubjectDialogOpen, setIsAddSubjectDialogOpen] = useState(false);
   const [editingSubject, setEditingSubject] = useState<FullSubject | null>(null);
   const [editingSubjectName, setEditingSubjectName] = useState('');
+  const [bulkAssignSubject, setBulkAssignSubject] = useState<FullSubject | null>(null);
+  const [selectedClassIds, setSelectedClassIds] = useState<Set<string>>(new Set());
+
 
   useEffect(() => {
     setSubjects(initialSubjects);
@@ -162,6 +172,63 @@ const SubjectManager = ({ initialSubjects, initialClasses, onAssignmentChange }:
   }, [initialSubjects, initialClasses]);
 
   const groupedClasses = useMemo(() => groupClassesByGrade(classes), [classes]);
+
+  const handleOpenBulkAssign = (subject: FullSubject) => {
+    setSelectedClassIds(new Set());
+    setBulkAssignSubject(subject);
+  };
+
+  const handleBulkAssign = async () => {
+    if (!bulkAssignSubject || selectedClassIds.size === 0) return;
+
+    const targetClassIds = Array.from(selectedClassIds);
+    
+    // Filter out classes that already have the subject
+    const finalTargetClassIds = targetClassIds.filter(classId => {
+        const classItem = classes.find(c => c.id === classId);
+        return !classItem?.classSubjects.some(cs => cs.subjectId === bulkAssignSubject.id);
+    });
+
+    if (finalTargetClassIds.length === 0) {
+        toast({ title: 'Already Assigned', description: `This subject is already assigned to all selected classes.` });
+        setBulkAssignSubject(null);
+        return;
+    }
+
+    const originalClasses = [...classes];
+
+    // Optimistic UI Update
+    const newOptimisticClasses = originalClasses.map(c => {
+      if (finalTargetClassIds.includes(c.id)) {
+        const newClassSubject: ClassSubject & { subject: FullSubject } = {
+          id: `temp-${bulkAssignSubject.id}-${c.id}-${Date.now()}`,
+          classId: c.id,
+          subjectId: bulkAssignSubject.id,
+          teacherId: null,
+          subject: bulkAssignSubject,
+        };
+        return { ...c, classSubjects: [...c.classSubjects, newClassSubject] };
+      }
+      return c;
+    });
+    setClasses(newOptimisticClasses);
+    setBulkAssignSubject(null);
+
+    try {
+        const response = await fetch('/api/subjects/assign', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ subjectId: bulkAssignSubject.id, classIds: finalTargetClassIds }),
+        });
+
+        if (!response.ok) throw new Error('Failed to assign subject');
+
+        toast({ title: 'Success', description: `Assigned "${bulkAssignSubject.name}" to ${finalTargetClassIds.length} class(es).` });
+    } catch (error) {
+        toast({ title: 'Assignment Failed', description: 'Could not assign subject, changes were reverted.', variant: 'destructive' });
+        setClasses(originalClasses);
+    }
+  };
 
   const handleUnassignSubject = async (classSubjectId: string, classId: string) => {
     const originalClasses = [...classes];
@@ -435,7 +502,7 @@ const SubjectManager = ({ initialSubjects, initialClasses, onAssignmentChange }:
             <CardContent>
               <ScrollArea className="h-[60vh] pr-4">
                 {subjects.length > 0 ? (
-                  subjects.map(subject => <DraggableSubject key={subject.id} subject={subject} onEdit={handleEditSubject} />)
+                  subjects.map(subject => <DraggableSubject key={subject.id} subject={subject} onEdit={handleEditSubject} onBulkAssign={handleOpenBulkAssign} />)
                 ) : (
                   <p>No subjects found. Please create subjects first.</p>
                 )}
@@ -480,6 +547,58 @@ const SubjectManager = ({ initialSubjects, initialClasses, onAssignmentChange }:
               <Button variant="outline" onClick={() => setEditingSubject(null)}>Cancel</Button>
             </DialogClose>
             <Button onClick={handleUpdateSubject}>Save Changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Assign Dialog */}
+      <Dialog open={!!bulkAssignSubject} onOpenChange={(isOpen) => !isOpen && setBulkAssignSubject(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Assign "{bulkAssignSubject?.name}" to Classes</DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="max-h-[60vh] my-4 pr-6">
+            <div className="space-y-4">
+              {Object.entries(groupedClasses).map(([grade, gradeClasses]) => (
+                <div key={grade}>
+                  <h4 className="font-semibold text-lg mb-2 sticky top-0 bg-background py-1">{grade}</h4>
+                  <div className="space-y-2">
+                    {gradeClasses.map(classItem => {
+                      const isAssigned = classItem.classSubjects.some(cs => cs.subjectId === bulkAssignSubject?.id);
+                      return (
+                        <div key={classItem.id} className="flex items-center space-x-2 p-2 rounded-md hover:bg-muted">
+                          <Checkbox
+                            id={`class-${classItem.id}`}
+                            checked={selectedClassIds.has(classItem.id) || isAssigned}
+                            disabled={isAssigned}
+                            onCheckedChange={(checked) => {
+                              setSelectedClassIds(prev => {
+                                const newSet = new Set(prev);
+                                if (checked) {
+                                  newSet.add(classItem.id);
+                                } else {
+                                  newSet.delete(classItem.id);
+                                }
+                                return newSet;
+                              });
+                            }}
+                          />
+                          <Label htmlFor={`class-${classItem.id}`} className={`flex-grow ${isAssigned ? 'text-muted-foreground' : ''}`}>
+                            {classItem.name} {isAssigned && <span className="text-xs">(Already assigned)</span>}
+                          </Label>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline" onClick={() => setBulkAssignSubject(null)}>Cancel</Button>
+            </DialogClose>
+            <Button onClick={handleBulkAssign}>Assign to Selected</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
