@@ -27,10 +27,10 @@ const groupClassesByGrade = (classes: FullClass[]) => {
     }
     acc[grade].push(currentClass);
     return acc;
-  }, {} as Record&lt;string, FullClass[]&gt;);
+  }, {} as Record<string, FullClass[]>);
 };
 
-export const SubjectRelationshipTree: React.FC&lt;SubjectRelationshipTreeProps&gt; = ({
+export const SubjectRelationshipTree: React.FC<SubjectRelationshipTreeProps> = ({
   subject,
   allClasses,
   onToggleAssignment,
@@ -38,7 +38,7 @@ export const SubjectRelationshipTree: React.FC&lt;SubjectRelationshipTreeProps&g
 }) => {
   const groupedClasses = React.useMemo(() => groupClassesByGrade(allClasses), [allClasses]);
   const assignedClassIds = React.useMemo(() => {
-    const assignedIds = new Set&lt;string&gt;();
+    const assignedIds = new Set<string>();
     allClasses.forEach(c => {
       if (c.classSubjects.some(cs => cs.subjectId === subject.id)) {
         assignedIds.add(c.id);
@@ -48,58 +48,58 @@ export const SubjectRelationshipTree: React.FC&lt;SubjectRelationshipTreeProps&g
   }, [allClasses, subject.id]);
 
   return (
-    &lt;motion.div
+    <motion.div
       initial={{ opacity: 0, x: 50 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 50 }}
       transition={{ duration: 0.3 }}
       className="h-full"
-    &gt;
-      &lt;Card className="h-full flex flex-col"&gt;
-        &lt;CardHeader className="flex flex-row items-center justify-between"&gt;
-          &lt;CardTitle&gt;"{subject.name}" Assignments&lt;/CardTitle&gt;
-          &lt;Button variant="ghost" size="icon" onClick={onClose}&gt;
-            &lt;X className="h-4 w-4" /&gt;
-          &lt;/Button&gt;
-        &lt;/CardHeader&gt;
-        &lt;CardContent className="flex-grow flex flex-col gap-4"&gt;
-          &lt;p className="text-muted-foreground"&gt;Select classes to assign or unassign this subject.&lt;/p&gt;
-          &lt;ScrollArea className="flex-grow pr-6"&gt;
-            &lt;div className="space-y-4"&gt;
+    >
+      <Card className="h-full flex flex-col">
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>"{subject.name}" Assignments</CardTitle>
+          <Button variant="ghost" size="icon" onClick={onClose}>
+            <X className="h-4 w-4" />
+          </Button>
+        </CardHeader>
+        <CardContent className="flex-grow flex flex-col gap-4">
+          <p className="text-muted-foreground">Select classes to assign or unassign this subject.</p>
+          <ScrollArea className="flex-grow pr-6">
+            <div className="space-y-4">
               {Object.entries(groupedClasses).map(([grade, gradeClasses]) => (
-                &lt;div key={grade}&gt;
-                  &lt;h4 className="font-semibold text-lg mb-2 sticky top-0 bg-background py-1"&gt;{grade}&lt;/h4&gt;
-                  &lt;div className="space-y-2"&gt;
+                <div key={grade}>
+                  <h4 className="font-semibold text-lg mb-2 sticky top-0 bg-background py-1">{grade}</h4>
+                  <div className="space-y-2">
                     {gradeClasses.map(classItem => {
                       const isAssigned = assignedClassIds.has(classItem.id);
                       return (
-                        &lt;div
+                        <div
                           key={classItem.id}
                           className="flex items-center space-x-3 p-2 rounded-md hover:bg-muted"
-                        &gt;
-                          &lt;Checkbox
+                        >
+                          <Checkbox
                             id={`class-assign-${classItem.id}`}
                             checked={isAssigned}
                             onCheckedChange={(checked) => {
                               onToggleAssignment(classItem.id, !!checked);
                             }}
-                          /&gt;
-                          &lt;Label
+                          />
+                          <Label
                             htmlFor={`class-assign-${classItem.id}`}
                             className="flex-grow cursor-pointer"
-                          &gt;
+                          >
                             {classItem.name}
-                          &lt;/Label&gt;
-                        &lt;/div&gt;
+                          </Label>
+                        </div>
                       );
                     })}
-                  &lt;/div&gt;
-                &lt;/div&gt;
+                  </div>
+                </div>
               ))}
-            &lt;/div&gt;
-          &lt;/ScrollArea&gt;
-        &lt;/CardContent&gt;
-      &lt;/Card&gt;
-    &lt;/motion.div&gt;
+            </div>
+          </ScrollArea>
+        </CardContent>
+      </Card>
+    </motion.div>
   );
 };

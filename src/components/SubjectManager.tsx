@@ -26,24 +26,24 @@ type FullClass = Class & { classSubjects: (ClassSubject & { subject: FullSubject
 // Subject Card Item
 const SubjectCard = React.memo(({ subject, onSelect, onEdit, assignedClassCount }: { subject: FullSubject; onSelect: (subject: FullSubject) => void; onEdit: (subject: FullSubject) => void; assignedClassCount: number; }) => {
   return (
-    &lt;Card className="mb-2 group transition-shadow hover:shadow-md"&gt;
-      &lt;CardContent className="p-3 flex items-center justify-between"&gt;
-        &lt;div onClick={() => onSelect(subject)} className="flex-grow cursor-pointer flex items-center gap-4"&gt;
-          &lt;div&gt;
-            &lt;p className="font-semibold"&gt;{subject.name}&lt;/p&gt;
-            &lt;p className="text-sm text-muted-foreground"&gt;{assignedClassCount} class(es) assigned&lt;/p&gt;
-          &lt;/div&gt;
-        &lt;/div&gt;
-        &lt;div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity"&gt;
-          &lt;Button variant="ghost" size="icon" onClick={() => onEdit(subject)} aria-label="Edit subject"&gt;
-            &lt;Pencil className="h-4 w-4" /&gt;
-          &lt;/Button&gt;
-          &lt;Button variant="ghost" size="icon" onClick={() => onSelect(subject)} aria-label="Manage assignments"&gt;
-            &lt;ChevronRight className="h-4 w-4" /&gt;
-          &lt;/Button&gt;
-        &lt;/div&gt;
-      &lt;/CardContent&gt;
-    &lt;/Card&gt;
+    <Card className="mb-2 group transition-shadow hover:shadow-md">
+      <CardContent className="p-3 flex items-center justify-between">
+        <div onClick={() => onSelect(subject)} className="flex-grow cursor-pointer flex items-center gap-4">
+          <div>
+            <p className="font-semibold">{subject.name}</p>
+            <p className="text-sm text-muted-foreground">{assignedClassCount} class(es) assigned</p>
+          </div>
+        </div>
+        <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+          <Button variant="ghost" size="icon" onClick={() => onEdit(subject)} aria-label="Edit subject">
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={() => onSelect(subject)} aria-label="Manage assignments">
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 });
 
@@ -54,13 +54,13 @@ interface SubjectManagerProps {
 }
 
 const SubjectManager = ({ initialSubjects, initialClasses, onAssignmentChange }: SubjectManagerProps) => {
-  const [subjects, setSubjects] = useState&lt;FullSubject[]&gt;(initialSubjects);
-  const [classes, setClasses] = useState&lt;FullClass[]&gt;(initialClasses);
+  const [subjects, setSubjects] = useState<FullSubject[]>(initialSubjects);
+  const [classes, setClasses] = useState<FullClass[]>(initialClasses);
   const [newSubjectName, setNewSubjectName] = useState('');
   const [isAddSubjectDialogOpen, setIsAddSubjectDialogOpen] = useState(false);
-  const [editingSubject, setEditingSubject] = useState&lt;FullSubject | null&gt;(null);
+  const [editingSubject, setEditingSubject] = useState<FullSubject | null>(null);
   const [editingSubjectName, setEditingSubjectName] = useState('');
-  const [selectedSubject, setSelectedSubject] = useState&lt;FullSubject | null&gt;(null);
+  const [selectedSubject, setSelectedSubject] = useState<FullSubject | null>(null);
 
   useEffect(() => {
     setSubjects(initialSubjects);
@@ -68,7 +68,7 @@ const SubjectManager = ({ initialSubjects, initialClasses, onAssignmentChange }:
   }, [initialSubjects, initialClasses]);
 
   const assignedCounts = useMemo(() => {
-    const counts = new Map&lt;string, number&gt;();
+    const counts = new Map<string, number>();
     classes.forEach(c => {
       c.classSubjects.forEach(cs => {
         counts.set(cs.subjectId, (counts.get(cs.subjectId) || 0) + 1);
@@ -87,7 +87,7 @@ const SubjectManager = ({ initialSubjects, initialClasses, onAssignmentChange }:
     setClasses(prevClasses => prevClasses.map(c => {
       if (c.id === classId) {
         if (shouldBeAssigned) {
-          const newClassSubject: ClassSubject &amp; { subject: FullSubject } = {
+          const newClassSubject: ClassSubject & { subject: FullSubject } = {
             id: `temp-${subjectId}-${c.id}-${Date.now()}`,
             classId: c.id,
             subjectId: subjectId,
@@ -237,118 +237,118 @@ const SubjectManager = ({ initialSubjects, initialClasses, onAssignmentChange }:
   };
 
   return (
-    &lt;div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 h-[80vh]"&gt;
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 h-[80vh]">
       {/* Subjects Panel */}
-      &lt;div className="md:col-span-1 h-full"&gt;
-        &lt;Card className="h-full flex flex-col"&gt;
-          &lt;CardHeader className="flex flex-row items-center justify-between pr-4"&gt;
-            &lt;CardTitle&gt;Subjects&lt;/CardTitle&gt;
-            &lt;Dialog open={isAddSubjectDialogOpen} onOpenChange={setIsAddSubjectDialogOpen}&gt;
-              &lt;DialogTrigger asChild&gt;
-                &lt;Button size="sm"&gt;Add Subject&lt;/Button&gt;
-              &lt;/DialogTrigger&gt;
-              &lt;DialogContent&gt;
-                &lt;DialogHeader&gt;
-                  &lt;DialogTitle&gt;Add New Subject&lt;/DialogTitle&gt;
-                &lt;/DialogHeader&gt;
-                &lt;div className="grid gap-4 py-4"&gt;
-                  &lt;div className="grid grid-cols-4 items-center gap-4"&gt;
-                    &lt;Label htmlFor="subject-name" className="text-right"&gt;
+      <div className="md:col-span-1 h-full">
+        <Card className="h-full flex flex-col">
+          <CardHeader className="flex flex-row items-center justify-between pr-4">
+            <CardTitle>Subjects</CardTitle>
+            <Dialog open={isAddSubjectDialogOpen} onOpenChange={setIsAddSubjectDialogOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm">Add Subject</Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Add New Subject</DialogTitle>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="subject-name" className="text-right">
                       Name
-                    &lt;/Label&gt;
-                    &lt;Input
+                    </Label>
+                    <Input
                       id="subject-name"
                       value={newSubjectName}
                       onChange={(e) => setNewSubjectName(e.target.value)}
                       className="col-span-3"
                       placeholder="e.g., Mathematics"
                       autoFocus
-                    /&gt;
-                  &lt;/div&gt;
-                &lt;/div&gt;
-                &lt;DialogFooter&gt;
-                  &lt;DialogClose asChild&gt;
-                    &lt;Button variant="outline" onClick={() => setNewSubjectName('')}&gt;Cancel&lt;/Button&gt;
-                  &lt;/DialogClose&gt;
-                  &lt;Button onClick={handleCreateSubject}&gt;Create Subject&lt;/Button&gt;
-                &lt;/DialogFooter&gt;
-              &lt;/DialogContent&gt;
-            &lt;/Dialog&gt;
-          &lt;/CardHeader&gt;
-          &lt;CardContent className="flex-grow overflow-hidden"&gt;
-            &lt;ScrollArea className="h-full pr-4"&gt;
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <DialogClose asChild>
+                    <Button variant="outline" onClick={() => setNewSubjectName('')}>Cancel</Button>
+                  </DialogClose>
+                  <Button onClick={handleCreateSubject}>Create Subject</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </CardHeader>
+          <CardContent className="flex-grow overflow-hidden">
+            <ScrollArea className="h-full pr-4">
               {subjects.length > 0 ? (
                 subjects.map(subject => (
-                  &lt;SubjectCard
+                  <SubjectCard
                     key={subject.id}
                     subject={subject}
                     onSelect={setSelectedSubject}
                     onEdit={handleEditSubject}
                     assignedClassCount={assignedCounts.get(subject.id) || 0}
-                  /&gt;
+                  />
                 ))
               ) : (
-                &lt;p className="text-center text-muted-foreground pt-10"&gt;No subjects found. Please create one.&lt;/p&gt;
+                <p className="text-center text-muted-foreground pt-10">No subjects found. Please create one.</p>
               )}
-            &lt;/ScrollArea&gt;
-          &lt;/CardContent&gt;
-        &lt;/Card&gt;
-      &lt;/div&gt;
+            </ScrollArea>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Relationship Tree Panel */}
-      &lt;div className="md:col-span-2 h-full"&gt;
-        &lt;AnimatePresence mode="wait"&gt;
+      <div className="md:col-span-2 h-full">
+        <AnimatePresence mode="wait">
           {selectedSubject ? (
-            &lt;SubjectRelationshipTree
+            <SubjectRelationshipTree
               key={selectedSubject.id}
               subject={selectedSubject}
               allClasses={classes}
               onToggleAssignment={handleToggleAssignment}
               onClose={() => setSelectedSubject(null)}
-            /&gt;
+            />
           ) : (
-             &lt;motion.div
+             <motion.div
                 key="placeholder"
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
                 className="h-full flex items-center justify-center bg-muted/40 rounded-lg"
-             &gt;
-                &lt;p className="text-muted-foreground text-lg"&gt;Select a subject to manage its class assignments.&lt;/p&gt;
-             &lt;/motion.div&gt;
+             >
+                <p className="text-muted-foreground text-lg">Select a subject to manage its class assignments.</p>
+             </motion.div>
           )}
-        &lt;/AnimatePresence&gt;
-      &lt;/div&gt;
+        </AnimatePresence>
+      </div>
 
       {/* Edit Subject Dialog */}
-      &lt;Dialog open={!!editingSubject} onOpenChange={(isOpen) => !isOpen && setEditingSubject(null)}&gt;
-        &lt;DialogContent&gt;
-          &lt;DialogHeader&gt;
-            &lt;DialogTitle&gt;Edit Subject&lt;/DialogTitle&gt;
-          &lt;/DialogHeader&gt;
-          &lt;div className="grid gap-4 py-4"&gt;
-            &lt;div className="grid grid-cols-4 items-center gap-4"&gt;
-              &lt;Label htmlFor="edit-subject-name" className="text-right"&gt;
+      <Dialog open={!!editingSubject} onOpenChange={(isOpen) => !isOpen && setEditingSubject(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Subject</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-subject-name" className="text-right">
                 Name
-              &lt;/Label&gt;
-              &lt;Input
+              </Label>
+              <Input
                 id="edit-subject-name"
                 value={editingSubjectName}
                 onChange={(e) => setEditingSubjectName(e.target.value)}
                 className="col-span-3"
                 autoFocus
-              /&gt;
-            &lt;/div&gt;
-          &lt;/div&gt;
-          &lt;DialogFooter&gt;
-            &lt;DialogClose asChild&gt;
-              &lt;Button variant="outline" onClick={() => setEditingSubject(null)}&gt;Cancel&lt;/Button&gt;
-            &lt;/DialogClose&gt;
-            &lt;Button onClick={handleUpdateSubject}&gt;Save Changes&lt;/Button&gt;
-          &lt;/DialogFooter&gt;
-        &lt;/DialogContent&gt;
-      &lt;/Dialog&gt;
-    &lt;/div&gt;
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline" onClick={() => setEditingSubject(null)}>Cancel</Button>
+            </DialogClose>
+            <Button onClick={handleUpdateSubject}>Save Changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 };
 
