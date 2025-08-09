@@ -9,6 +9,7 @@ import ScheduleManager from '@/components/ScheduleManager';
 import SubjectManager from '@/components/SubjectManager';
 import TimetableView from '@/components/TimetableView';
 import ScheduleDialog, { ScheduleInitialData } from '@/components/ScheduleDialog';
+import { ScheduleDetailsDialog } from '@/components/ScheduleDetailsDialog';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Header from '@/components/Header';
 import { Button } from '@/components/ui/button';
@@ -73,6 +74,8 @@ const ManagePage = ({ initialClasses, initialStudents, initialSubjects, teachers
   const [students, setStudents] = useState(initialStudents);
   const [schedules, setSchedules] = useState<FullSchedule[]>(initialSchedules);
   const [isScheduleDialogOpen, setScheduleDialogOpen] = useState(false);
+  const [isDetailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<EventClickArg['event'] | null>(null);
   const [scheduleInitialData, setScheduleInitialData] = useState<ScheduleInitialData | null>(null);
   const [newClassName, setNewClassName] = useState('');
   const [newStudent, setNewStudent] = useState({ firstName: '', lastName: '', classId: '', parentEmail: '' });
@@ -90,18 +93,9 @@ const ManagePage = ({ initialClasses, initialStudents, initialSubjects, teachers
   }, []);
 
   const handleEventClick = useCallback((clickInfo: EventClickArg) => {
-    const { extendedProps } = clickInfo.event;
-    handleOpenScheduleDialog({
-      id: clickInfo.event.id,
-      classId: extendedProps.classId,
-      subjectId: extendedProps.subjectId,
-      teacherId: extendedProps.teacherId,
-      startDate: clickInfo.event.startStr,
-      endDate: clickInfo.event.endStr,
-      isAllDay: clickInfo.event.allDay,
-      rrule: extendedProps.rrule,
-    });
-  }, [handleOpenScheduleDialog]);
+    setSelectedEvent(clickInfo.event);
+    setDetailsDialogOpen(true);
+  }, []);
 
   const handleDateSelect = useCallback((selectInfo: DateSelectArg, classId: string) => {
     handleOpenScheduleDialog({
@@ -122,17 +116,55 @@ const ManagePage = ({ initialClasses, initialStudents, initialSubjects, teachers
   }, [handleOpenScheduleDialog]);
 
   const handleTimetableViewSelectEvent = useCallback((event: any) => {
-    handleOpenScheduleDialog({
+    const fullEvent = {
       id: event.id,
-      classId: event.classId,
-      subjectId: event.subjectId,
-      teacherId: event.teacherId,
-      startDate: event.startTime.toISOString(),
-      endDate: event.endTime.toISOString(),
-      isAllDay: event.isAllDay,
-      rrule: event.rrule,
+      start: event.startTime,
+      end: event.endTime,
+      allDay: event.isAllDay,
+      title: `${event.subject} - ${event.teacher}`,
+      extendedProps: {
+        classId: event.classId,
+        subjectId: event.subjectId,
+        teacherId: event.teacherId,
+        rrule: event.rrule,
+        className: event.className,
+        teacher: event.teacher,
+      }
+    };
+    setSelectedEvent(fullEvent as EventClickArg['event']);
+    setDetailsDialogOpen(true);
+  }, []);
+
+  const handleEditSchedule = () => {
+    if (!selectedEvent) return;
+    const { extendedProps } = selectedEvent;
+    handleOpenScheduleDialog({
+      id: selectedEvent.id,
+      classId: extendedProps.classId,
+      subjectId: extendedProps.subjectId,
+      teacherId: extendedProps.teacherId,
+      startDate: selectedEvent.startStr,
+      endDate: selectedEvent.endStr,
+      isAllDay: selectedEvent.allDay,
+      rrule: extendedProps.rrule,
     });
-  }, [handleOpenScheduleDialog]);
+    setDetailsDialogOpen(false);
+  };
+
+  const handleDeleteSchedule = async () => {
+    if (!selectedEvent) return;
+    const res = await fetch(`/api/schedules/${selectedEvent.id}`, {
+      method: 'DELETE',
+    });
+
+    if (res.ok) {
+      setSchedules(schedules.filter(s => s.id !== selectedEvent.id));
+      toast({ title: 'Schedule deleted successfully' });
+    } else {
+      toast({ title: 'Failed to delete schedule', variant: 'destructive' });
+    }
+    setDetailsDialogOpen(false);
+  };
 
   const handleSaveSchedule = async (data: any) => {
     const res = await fetch('/api/schedules', {
@@ -298,6 +330,22 @@ const ManagePage = ({ initialClasses, initialStudents, initialSubjects, teachers
           classes={initialClasses}
           subjects={initialSubjects}
           teachers={teachers}
+        />
+
+        <ScheduleDetailsDialog
+          isOpen={isDetailsDialogOpen}
+          onClose={() => setDetailsDialogOpen(false)}
+          onEdit={handleEditSchedule}
+          onDelete={handleDeleteSchedule}
+          event={selectedEvent ? {
+            title: selectedEvent.title,
+            start: selectedEvent.start!,
+            end: selectedEvent.end!,
+            extendedProps: {
+              className: selectedEvent.extendedProps.className,
+              teacher: selectedEvent.extendedProps.teacher,
+            }
+          } : null}
         />
 
         <Tabs defaultValue="classes">
