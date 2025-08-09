@@ -70,6 +70,8 @@ export const SubjectRelationshipTree: React.FC<SubjectRelationshipTreeProps> = (
     }
   };
 
+  const isSubjectSaving = subject.id.startsWith('temp-');
+
   return (
     <motion.div
       initial={{ opacity: 0, x: 50 }}
@@ -109,10 +111,15 @@ export const SubjectRelationshipTree: React.FC<SubjectRelationshipTreeProps> = (
         <CardContent className="flex-grow flex flex-col gap-4">
           <div className="flex justify-between items-center">
             <p className="text-muted-foreground">Select classes to assign or unassign this subject.</p>
-            <Button size="sm" onClick={handleBulkAssign} disabled={unassignedClassIds.length === 0}>
+            <Button size="sm" onClick={handleBulkAssign} disabled={unassignedClassIds.length === 0 || isSubjectSaving}>
               Assign to All
             </Button>
           </div>
+           {isSubjectSaving && (
+            <div className="text-sm text-amber-600 bg-amber-50 p-2 rounded-md">
+              Please wait for the subject to finish saving before assigning it to classes.
+            </div>
+          )}
           <ScrollArea className="flex-grow pr-6">
             <div className="space-y-4">
               {Object.entries(groupedClasses).map(([grade, gradeClasses]) => (
@@ -124,18 +131,21 @@ export const SubjectRelationshipTree: React.FC<SubjectRelationshipTreeProps> = (
                       return (
                         <div
                           key={classItem.id}
-                          className="flex items-center space-x-3 p-2 rounded-md hover:bg-muted"
+                          className={`flex items-center space-x-3 p-2 rounded-md ${isSubjectSaving ? 'cursor-not-allowed opacity-50' : 'hover:bg-muted'}`}
                         >
                           <Checkbox
                             id={`class-assign-${classItem.id}`}
                             checked={isAssigned}
                             onCheckedChange={(checked) => {
-                              onToggleAssignment(classItem.id, !!checked);
+                              if (!isSubjectSaving) {
+                                onToggleAssignment(classItem.id, !!checked);
+                              }
                             }}
+                            disabled={isSubjectSaving}
                           />
                           <Label
                             htmlFor={`class-assign-${classItem.id}`}
-                            className="flex-grow cursor-pointer"
+                            className={`flex-grow ${isSubjectSaving ? 'cursor-not-allowed' : 'cursor-pointer'}`}
                           >
                             {classItem.name}
                           </Label>
