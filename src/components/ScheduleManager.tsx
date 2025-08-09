@@ -13,6 +13,7 @@ import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
+import rrulePlugin from '@fullcalendar/rrule';
 import { EventClickArg, DateSelectArg } from '@fullcalendar/core';
 
 type ScheduleManagerProps = {
@@ -84,7 +85,7 @@ const ScheduleManager = ({
       </CardHeader>
       <CardContent>
         <FullCalendar
-          plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+          plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, rrulePlugin]}
           headerToolbar={{
             left: 'prev,next today',
             center: 'title',

@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { RRule } from 'rrule';
+import { RRule, rrulestr } from 'rrule';
 import { toast } from './ui/use-toast';
 
 // Define types for the component props
@@ -12,6 +12,16 @@ interface TimetableViewProps {
   onSelectSlot: (slot: { start: Date; end: Date, classId?: string }) => void;
   onSelectEvent: (event: any) => void;
 }
+
+const formatLocalDate = (date: Date) => {
+  const Y = date.getFullYear();
+  const M = (date.getMonth() + 1).toString().padStart(2, '0');
+  const D = date.getDate().toString().padStart(2, '0');
+  const h = date.getHours().toString().padStart(2, '0');
+  const m = date.getMinutes().toString().padStart(2, '0');
+  const s = date.getSeconds().toString().padStart(2, '0');
+  return `${Y}${M}${D}T${h}${m}${s}`;
+};
 
 // Define a type for a timetable event
 interface TimetableEvent {
@@ -81,13 +91,19 @@ const TimetableView: React.FC<TimetableViewProps> = ({ schedules, classes, teach
 
     const occurrences = filteredEvents.flatMap(event => {
       if (event.rrule) {
-        const rule = RRule.fromString(event.rrule);
-        const dates = rule.between(dayStart, dayEnd);
-        return dates.map(date => ({
-          ...event,
-          startTime: new Date(date),
-          endTime: new Date(date.getTime() + (event.endTime.getTime() - event.startTime.getTime())),
-        }));
+        try {
+          const rfcString = `DTSTART:${formatLocalDate(event.startTime)}\nRRULE:${event.rrule}`;
+          const rule = rrulestr(rfcString);
+          const dates = rule.between(dayStart, dayEnd);
+          return dates.map(date => ({
+            ...event,
+            startTime: new Date(date),
+            endTime: new Date(date.getTime() + (event.endTime.getTime() - event.startTime.getTime())),
+          }));
+        } catch (error) {
+          console.error("Error parsing rrule:", event.rrule, error);
+          return [];
+        }
       }
       if (event.startTime >= dayStart && event.startTime <= dayEnd) {
         return [event];
@@ -196,7 +212,7 @@ const TimetableView: React.FC<TimetableViewProps> = ({ schedules, classes, teach
           {days.map((day, dayIndex) => (
             <div key={day} className="col-span-1 relative border-l border-gray-200">
               <h3 className="text-center font-semibold sticky top-0 bg-white z-10 py-2">{day}</h3>
-              <div className="relative h-full">
+              <div className="relative">
                 {/* Background time slots with click handlers */}
                 {timeSlots.map(time => (
                   <div 
