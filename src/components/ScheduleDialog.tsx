@@ -189,7 +189,12 @@ const ScheduleDialog = ({
   const availableSubjects = useMemo(() => {
     if (!selectedClass) return subjects;
     const classInfo = classes.find(c => c.id === selectedClass);
-    return classInfo?.subjects.map(s => s.subject) || subjects;
+    // Ensure classInfo and classInfo.subjects exist before mapping
+    if (classInfo && classInfo.subjects) {
+      return classInfo.subjects.map(s => s.subject);
+    }
+    // Fallback to all subjects or an empty array if the class has no specific subjects
+    return subjects || [];
   }, [selectedClass, classes, subjects]);
 
   return (
