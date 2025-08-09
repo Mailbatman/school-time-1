@@ -18,7 +18,7 @@ interface ScheduleDetailsDialogProps {
   event: {
     title: string;
     start: Date;
-    end: Date;
+    end: Date | null;
     extendedProps: {
       className: string;
       teacher: string;
@@ -49,12 +49,16 @@ export const ScheduleDetailsDialog = ({
                 {event.start.toLocaleTimeString([], {
                   hour: "2-digit",
                   minute: "2-digit",
-                })}{" "}
-                -{" "}
-                {event.end.toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
                 })}
+                {event.end && (
+                  <>
+                    {" - "}
+                    {event.end.toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </>
+                )}
               </p>
             </div>
           </AlertDialogDescription>

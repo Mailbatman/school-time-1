@@ -340,7 +340,7 @@ const ManagePage = ({ initialClasses, initialStudents, initialSubjects, teachers
           event={selectedEvent ? {
             title: selectedEvent.title,
             start: selectedEvent.start!,
-            end: selectedEvent.end!,
+            end: selectedEvent.end,
             extendedProps: {
               className: selectedEvent.extendedProps.className,
               teacher: selectedEvent.extendedProps.teacher,
