@@ -18,6 +18,7 @@ interface SubjectRelationshipTreeProps {
   allClasses: FullClass[];
   onToggleAssignment: (classId: string, isAssigned: boolean) => void;
   onUpdateSubject: (subjectId: string, newName: string) => Promise<void>;
+  onBulkAssign: (classIds: string[]) => Promise<void>;
   onClose: () => void;
 }
 
@@ -37,6 +38,7 @@ export const SubjectRelationshipTree: React.FC<SubjectRelationshipTreeProps> = (
   allClasses,
   onToggleAssignment,
   onUpdateSubject,
+  onBulkAssign,
   onClose,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
@@ -50,15 +52,23 @@ export const SubjectRelationshipTree: React.FC<SubjectRelationshipTreeProps> = (
   };
 
   const groupedClasses = React.useMemo(() => groupClassesByGrade(allClasses), [allClasses]);
-  const assignedClassIds = React.useMemo(() => {
+  
+  const { assignedClassIds, unassignedClassIds } = React.useMemo(() => {
     const assignedIds = new Set<string>();
     allClasses.forEach(c => {
       if (c.classSubjects.some(cs => cs.subjectId === subject.id)) {
         assignedIds.add(c.id);
       }
     });
-    return assignedIds;
+    const unassignedIds = allClasses.filter(c => !assignedIds.has(c.id)).map(c => c.id);
+    return { assignedClassIds: assignedIds, unassignedClassIds: unassignedIds };
   }, [allClasses, subject.id]);
+
+  const handleBulkAssign = () => {
+    if (unassignedClassIds.length > 0) {
+      onBulkAssign(unassignedClassIds);
+    }
+  };
 
   return (
     <motion.div
@@ -97,7 +107,12 @@ export const SubjectRelationshipTree: React.FC<SubjectRelationshipTreeProps> = (
           </Button>
         </CardHeader>
         <CardContent className="flex-grow flex flex-col gap-4">
-          <p className="text-muted-foreground">Select classes to assign or unassign this subject.</p>
+          <div className="flex justify-between items-center">
+            <p className="text-muted-foreground">Select classes to assign or unassign this subject.</p>
+            <Button size="sm" onClick={handleBulkAssign} disabled={unassignedClassIds.length === 0}>
+              Assign to All
+            </Button>
+          </div>
           <ScrollArea className="flex-grow pr-6">
             <div className="space-y-4">
               {Object.entries(groupedClasses).map(([grade, gradeClasses]) => (

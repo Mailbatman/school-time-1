@@ -131,6 +131,56 @@ const SubjectManager = ({ initialSubjects, initialClasses, onAssignmentChange }:
     }
   };
 
+  const handleBulkAssign = async (classIds: string[]) => {
+    if (!selectedSubject) return;
+
+    const originalClasses = JSON.parse(JSON.stringify(classes));
+    const subjectId = selectedSubject.id;
+
+    // Optimistic UI update
+    setClasses(prevClasses => prevClasses.map(c => {
+      if (classIds.includes(c.id)) {
+        const isAlreadyAssigned = c.classSubjects.some(cs => cs.subjectId === subjectId);
+        if (!isAlreadyAssigned) {
+          const newClassSubject: ClassSubject & { subject: FullSubject } = {
+            id: `temp-${subjectId}-${c.id}-${Date.now()}`,
+            classId: c.id,
+            subjectId: subjectId,
+            teacherId: null,
+            subject: selectedSubject,
+          };
+          return { ...c, classSubjects: [...c.classSubjects, newClassSubject] };
+        }
+      }
+      return c;
+    }));
+
+    try {
+      const response = await fetch('/api/subjects/assign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subjectId, classIds }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to bulk assign subject');
+      }
+
+      toast({
+        title: 'Success',
+        description: `Assigned "${selectedSubject.name}" to ${classIds.length} class(es).`,
+      });
+      onAssignmentChange();
+    } catch (error) {
+      toast({
+        title: 'Bulk Assign Failed',
+        description: 'Could not complete bulk assignment, changes were reverted.',
+        variant: 'destructive',
+      });
+      setClasses(originalClasses);
+    }
+  };
+
   const handleUpdateSubject = async (subjectId: string, newName: string) => {
     const subjectToUpdate = subjects.find(s => s.id === subjectId);
     if (!subjectToUpdate || !newName.trim()) return;
@@ -273,6 +323,7 @@ const SubjectManager = ({ initialSubjects, initialClasses, onAssignmentChange }:
               allClasses={classes}
               onToggleAssignment={handleToggleAssignment}
               onUpdateSubject={handleUpdateSubject}
+              onBulkAssign={handleBulkAssign}
               onClose={() => setSelectedSubject(null)}
             />
           ) : (
