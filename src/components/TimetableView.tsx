@@ -17,16 +17,6 @@ interface TimetableViewProps {
   onSelectEvent: (event: any) => void;
 }
 
-const formatLocalDate = (date: Date) => {
-  const Y = date.getFullYear();
-  const M = (date.getMonth() + 1).toString().padStart(2, '0');
-  const D = date.getDate().toString().padStart(2, '0');
-  const h = date.getHours().toString().padStart(2, '0');
-  const m = date.getMinutes().toString().padStart(2, '0');
-  const s = date.getSeconds().toString().padStart(2, '0');
-  return `${Y}${M}${D}T${h}${m}${s}`;
-};
-
 // Define a type for a timetable event
 interface TimetableEvent {
   id: string;
@@ -104,8 +94,13 @@ const TimetableView: React.FC<TimetableViewProps> = ({ schedules, classes, teach
     const occurrences = filteredEvents.flatMap(event => {
       if (event.rrule) {
         try {
-          const rfcString = `DTSTART:${formatLocalDate(event.startTime)}\nRRULE:${event.rrule}`;
-          const rule = rrulestr(rfcString);
+          // Workaround for rrulestr parsing issue.
+          // Create a temporary rule to get the options object, then add dtstart.
+          const tempRule = RRule.fromString('RRULE:' + event.rrule);
+          const options = tempRule.options;
+          options.dtstart = event.startTime;
+          const rule = new RRule(options);
+
           const dates = rule.between(dayStart, dayEnd);
           return dates.map(date => ({
             ...event,
