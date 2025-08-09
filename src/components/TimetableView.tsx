@@ -1,6 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { format, startOfWeek, addDays, subDays, addWeeks, subWeeks } from 'date-fns';
 import { RRule, rrulestr } from 'rrule';
 import { toast } from './ui/use-toast';
 
@@ -42,12 +46,21 @@ interface TimetableEvent {
 const TimetableView: React.FC<TimetableViewProps> = ({ schedules, classes, teachers, onSelectSlot, onSelectEvent }) => {
   const [viewBy, setViewBy] = useState('class'); // 'class' or 'teacher'
   const [selectedFilterItem, setSelectedFilterItem] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'week' | 'day'>('week');
+  const [currentDate, setCurrentDate] = useState(new Date());
 
-  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
   const timeSlots = Array.from({ length: 12 }, (_, i) => {
     const hour = i + 8; // 8 AM to 7 PM
     return `${hour.toString().padStart(2, '0')}:00`;
   });
+
+  const visibleDays = useMemo(() => {
+    if (viewMode === 'week') {
+      const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 }); // Monday
+      return Array.from({ length: 5 }, (_, i) => addDays(weekStart, i));
+    }
+    return [currentDate]; // For 'day' view
+  }, [currentDate, viewMode]);
 
   const events: TimetableEvent[] = useMemo(() => {
     return schedules.map(schedule => ({
@@ -66,11 +79,10 @@ const TimetableView: React.FC<TimetableViewProps> = ({ schedules, classes, teach
     }));
   }, [schedules]);
 
-  const getEventsForDay = (dayIndex: number) => {
-    const dayStart = new Date();
-    dayStart.setDate(dayStart.getDate() - dayStart.getDay() + dayIndex + 1);
+  const getEventsForDay = (day: Date) => {
+    const dayStart = new Date(day);
     dayStart.setHours(0, 0, 0, 0);
-    const dayEnd = new Date(dayStart);
+    const dayEnd = new Date(day);
     dayEnd.setHours(23, 59, 59, 999);
 
     let filteredEvents = events;
@@ -114,7 +126,7 @@ const TimetableView: React.FC<TimetableViewProps> = ({ schedules, classes, teach
     return occurrences;
   };
 
-  const handleSlotClick = (dayIndex: number, time: string) => {
+  const handleSlotClick = (day: Date, time: string) => {
     if (viewBy === 'class' && !selectedFilterItem) {
       toast({
         title: 'Please select a class',
@@ -124,15 +136,14 @@ const TimetableView: React.FC<TimetableViewProps> = ({ schedules, classes, teach
       return;
     }
     
-    const dayStart = new Date();
-    dayStart.setDate(dayStart.getDate() - dayStart.getDay() + dayIndex + 1);
-    dayStart.setHours(Number(time.split(':')[0]), 0, 0, 0);
+    const start = new Date(day);
+    start.setHours(Number(time.split(':')[0]), 0, 0, 0);
     
-    const end = new Date(dayStart.getTime() + 60 * 60 * 1000); // 1 hour duration
+    const end = new Date(start.getTime() + 60 * 60 * 1000); // 1 hour duration
     
     const selectedClass = classes.find(c => c.name === selectedFilterItem);
 
-    onSelectSlot({ start: dayStart, end, classId: selectedClass?.id });
+    onSelectSlot({ start, end, classId: selectedClass?.id });
   };
 
   const renderEvent = (event: TimetableEvent) => {
@@ -169,11 +180,56 @@ const TimetableView: React.FC<TimetableViewProps> = ({ schedules, classes, teach
     setSelectedFilterItem(null);
   };
 
+  const handlePrev = () => {
+    setCurrentDate(prev => viewMode === 'week' ? subWeeks(prev, 1) : subDays(prev, 1));
+  };
+
+  const handleNext = () => {
+    setCurrentDate(prev => viewMode === 'week' ? addWeeks(prev, 1) : addDays(prev, 1));
+  };
+
+  const handleToday = () => {
+    setCurrentDate(new Date());
+  };
+
+  const handleViewModeChange = (value: 'week' | 'day' | null) => {
+    if (value) {
+      setViewMode(value);
+    }
+  };
+
+  const gridColsClass = viewMode === 'week' ? 'grid-cols-6' : 'grid-cols-2';
+  const dateRangeDisplay = useMemo(() => {
+    if (viewMode === 'week') {
+      const start = visibleDays[0];
+      const end = visibleDays[visibleDays.length - 1];
+      return `${format(start, 'd MMM yyyy')} - ${format(end, 'd MMM yyyy')}`;
+    }
+    return format(currentDate, 'd MMMM yyyy');
+  }, [visibleDays, viewMode, currentDate]);
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Visual Timetable</CardTitle>
+        <div className="flex justify-between items-center">
+          <CardTitle>Visual Timetable</CardTitle>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="icon" onClick={handlePrev}>
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button variant="outline" onClick={handleToday}>Today</Button>
+              <Button variant="outline" size="icon" onClick={handleNext}>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+            <span className="font-semibold">{dateRangeDisplay}</span>
+            <ToggleGroup type="single" value={viewMode} onValueChange={handleViewModeChange}>
+              <ToggleGroupItem value="day">Day</ToggleGroupItem>
+              <ToggleGroupItem value="week">Week</ToggleGroupItem>
+            </ToggleGroup>
+          </div>
+        </div>
         <div className="flex gap-4 mt-4">
           <Select value={viewBy} onValueChange={handleViewByChange}>
             <SelectTrigger className="w-[180px]">
@@ -199,7 +255,7 @@ const TimetableView: React.FC<TimetableViewProps> = ({ schedules, classes, teach
         </div>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-6 gap-1" style={{ minHeight: '720px' }}>
+        <div className={`grid ${gridColsClass} gap-1`} style={{ minHeight: '720px' }}>
           {/* Time Slot Labels */}
           <div className="col-span-1">
             {timeSlots.map(time => (
@@ -209,20 +265,22 @@ const TimetableView: React.FC<TimetableViewProps> = ({ schedules, classes, teach
             ))}
           </div>
           {/* Day Columns */}
-          {days.map((day, dayIndex) => (
-            <div key={day} className="col-span-1 relative border-l border-gray-200">
-              <h3 className="text-center font-semibold sticky top-0 bg-white z-10 py-2">{day}</h3>
+          {visibleDays.map((day) => (
+            <div key={day.toISOString()} className="col-span-1 relative border-l border-gray-200">
+              <h3 className="text-center font-semibold sticky top-0 bg-white z-10 py-2">
+                {format(day, 'EEE, d MMM')}
+              </h3>
               <div className="relative">
                 {/* Background time slots with click handlers */}
                 {timeSlots.map(time => (
                   <div 
-                    key={`${day}-${time}`} 
+                    key={`${day.toISOString()}-${time}`} 
                     className="h-12 border-t border-gray-200 cursor-pointer hover:bg-gray-50"
-                    onClick={() => handleSlotClick(dayIndex, time)}
+                    onClick={() => handleSlotClick(day, time)}
                   ></div>
                 ))}
                 {/* Events */}
-                {getEventsForDay(dayIndex).map(renderEvent)}
+                {getEventsForDay(day).map(renderEvent)}
               </div>
             </div>
           ))}
