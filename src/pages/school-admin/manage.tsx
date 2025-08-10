@@ -93,7 +93,27 @@ const ManagePage = ({ initialClasses, initialStudents, initialSubjects, teachers
   }, []);
 
   const handleEventClick = useCallback((clickInfo: EventClickArg) => {
-    setSelectedEvent(clickInfo.event);
+    const { event } = clickInfo;
+    const rrule = event.extendedProps._raw?.rrule;
+
+    const reconstructedEvent = {
+      id: event.id,
+      title: event.title,
+      start: event.start,
+      end: event.end,
+      allDay: event.allDay,
+      startStr: event.startStr,
+      endStr: event.endStr,
+      extendedProps: {
+        ...event.extendedProps,
+        rrule: rrule,
+      },
+      // Re-typing to satisfy TypeScript
+      toPlainObject: () => ({}),
+      toJSON: () => ({}),
+    } as unknown as EventClickArg['event'];
+
+    setSelectedEvent(reconstructedEvent);
     setDetailsDialogOpen(true);
   }, []);
 
