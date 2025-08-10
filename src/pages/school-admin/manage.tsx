@@ -341,9 +341,11 @@ const ManagePage = ({ initialClasses, initialStudents, initialSubjects, teachers
             title: selectedEvent.title,
             start: selectedEvent.start!,
             end: selectedEvent.end,
+            allDay: selectedEvent.allDay,
             extendedProps: {
               className: selectedEvent.extendedProps.className,
               teacher: selectedEvent.extendedProps.teacher,
+              rrule: selectedEvent.extendedProps.rrule,
             }
           } : null}
         />
